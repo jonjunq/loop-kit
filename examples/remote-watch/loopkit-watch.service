@@ -1,0 +1,6 @@
+[Unit]
+Description=Forward loop-kit notifications from remote projects
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/loopkit-watch

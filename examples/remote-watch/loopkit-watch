@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Watches one or more loop-kit projects on other machines over SSH and forwards their notifications, so the
+# notification secrets (bot tokens, webhooks) never enter the sandbox where the agents run. Each project only writes
+# logs/notify.log; this script collects what is new, tells you when a loop stops or starts running, when a machine
+# is unreachable, and sends a daily summary. Run it every couple of minutes (cron or the systemd timer next to it).
+#
+# Config (default ~/.config/loopkit-watch/projects): one line per project:  name  user@host  /path/to/project
+# Sending: SEND_CMD is a script that gets "<name>: <text>" as its argument (e.g. examples/notify/telegram.sh) or an
+# inline command using "$1"; without it, prints to stdout.
+# Usage: loopkit-watch [name]     State in ~/.local/state/loopkit-watch/<name>/
+set -uo pipefail
+CONF=${LOOPKIT_WATCH_CONF:-$HOME/.config/loopkit-watch/projects}
+STATE=${LOOPKIT_WATCH_STATE:-$HOME/.local/state/loopkit-watch}
+SUMMARY_HOUR=${SUMMARY_HOUR:-21}
+[[ -f "$HOME/.config/loopkit-watch/env" ]] && source "$HOME/.config/loopkit-watch/env"   # SEND_CMD, tokens...
+
+send() { # $1 name, $2 text
+  local msg="$1: $2"
+  local cmd=${SEND_CMD:-}
+  [[ -z "$cmd" ]] && { printf '%s\n\n' "$msg"; return; }
+  # shellcheck disable=SC2016  # $1 is expanded by the inner bash
+  [[ "$cmd" == *'$1'* ]] || cmd+=' "$1"'   # a script path gets the message appended; an inline command uses $1
+  timeout 30 bash -c "$cmd" send "$msg" >/dev/null 2>&1
+}
+
+check() { # $1 name, $2 user@host, $3 project folder
+  local name=$1 host=$2 dir=$3 st=$STATE/$1
+  mkdir -p "$st"
+  get() { cat "$st/$1" 2>/dev/null || echo "$2"; }
+  put() { echo "$2" > "$st/$1"; }
+
+  local off out
+  off=$(get offset 0)
+  out=$(ssh -n -o BatchMode=yes -o ConnectTimeout=10 "$host" "cd $dir || exit 9
+    f=logs/notify.log; s=\$(stat -c%s \$f 2>/dev/null || echo 0)
+    if flock -n logs/.lock true 2>/dev/null; then r=stopped; else r=running; fi
+    p=\$(jq -r '\"\\([.features[]|select(.passes==true)]|length)/\\(.features|length) done, \\([.features[]|select(.blocked==true)]|length) blocked\"' features.json 2>/dev/null)
+    echo \"\$s|\$r|\$p\"
+    if (( s < $off )); then cat \$f 2>/dev/null; else tail -c +$((off + 1)) \$f 2>/dev/null; fi
+    echo '@@LOG@@'; tail -3 logs/loop.log 2>/dev/null; true") || {
+    [[ "$(get status ?)" != unreachable ]] && send "$name" "cannot reach $host over SSH (network or sshd down?)"
+    put status unreachable; return; }
+
+  local size run prog body new last prev today
+  IFS='|' read -r size run prog <<<"$(head -1 <<<"$out")"
+  body=$(tail -n +2 <<<"$out")
+  new=${body%%@@LOG@@*}; last=${body##*@@LOG@@}
+  new=$(sed '/^\s*$/d' <<<"$new")
+  [[ -n "$new" ]] && send "$name" "$new
+($prog)"
+  put offset "$size"
+
+  prev=$(get status ?)
+  if [[ "$prev" == running && "$run" == stopped ]]; then
+    send "$name" "the loop is NOT running any more ($prog). Last lines:
+$(sed '/^\s*$/d' <<<"$last")"
+  elif [[ "$prev" != running && "$prev" != ? && "$run" == running ]]; then
+    send "$name" "the loop is running ($prog)"
+  fi
+  put status "$run"
+
+  today=$(date +%F)
+  if (( 10#$(date +%H) >= SUMMARY_HOUR )) && [[ "$run" == running && "$(get summary -)" != "$today" ]]; then
+    send "$name" "daily summary: $prog"
+    put summary "$today"
+  fi
+}
+
+[[ -f "$CONF" ]] || { echo "No config at $CONF (lines: name user@host /path/to/project)"; exit 1; }
+while read -r name host dir _; do
+  [[ -z "$name" || "$name" == \#* ]] && continue
+  [[ -n "${1:-}" && "$1" != "$name" ]] && continue
+  check "$name" "$host" "$dir"
+done < "$CONF"

@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  // Theme before first paint: saved choice > system
+  (function () {
+    var t = null; try { t = JSON.parse(localStorage.getItem("roadmap:theme")); } catch (e) {}
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  })();
+</script>
+<style>
+  :root {
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --radius: 22px;
+    /* dark by default */
+    --bg: #07080c; --text: #f3f3f6; --muted: rgba(255,255,255,.56); --faint: rgba(255,255,255,.32);
+    --glass: rgba(255,255,255,.055); --glass-2: rgba(255,255,255,.085); --glass-hi: rgba(255,255,255,.13);
+    --stroke: rgba(255,255,255,.10); --stroke-2: rgba(255,255,255,.16); --grid: rgba(255,255,255,.055);
+    --shadow: 0 20px 60px -20px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.08);
+    --blob-1: rgba(255,138,61,.30); --blob-2: rgba(118,87,255,.30); --blob-3: rgba(20,200,180,.16); --blob-4: rgba(255,90,140,.14);
+    --done: #34d399; --done-2: #10b981; --fail: #fbbf24; --blocked: #f87171; --run: #a78bfa; --run-2: #7c5cff;
+    --accent: #5b8cff; --accent-2: #8fb0ff; --todo: rgba(255,255,255,.14); --nowline: #ff5c6c; --idle: rgba(255,255,255,.28);
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #efece6; --text: #17171d; --muted: rgba(20,20,30,.58); --faint: rgba(20,20,30,.35);
+      --glass: rgba(255,255,255,.52); --glass-2: rgba(255,255,255,.68); --glass-hi: rgba(255,255,255,.85);
+      --stroke: rgba(255,255,255,.75); --stroke-2: rgba(20,20,30,.10); --grid: rgba(20,20,30,.065);
+      --shadow: 0 18px 50px -24px rgba(60,40,20,.35), inset 0 1px 0 rgba(255,255,255,.9);
+      --blob-1: rgba(255,170,110,.45); --blob-2: rgba(150,130,255,.38); --blob-3: rgba(90,210,190,.30); --blob-4: rgba(255,140,170,.25);
+      --done: #12a46b; --done-2: #0c8a59; --fail: #d98b00; --blocked: #dc4a4a; --run: #7c5cff; --run-2: #6244ea;
+      --accent: #3a6cf0; --accent-2: #6d93f5; --todo: rgba(20,20,30,.10); --nowline: #e5484d; --idle: rgba(20,20,30,.25);
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #efece6; --text: #17171d; --muted: rgba(20,20,30,.58); --faint: rgba(20,20,30,.35);
+    --glass: rgba(255,255,255,.52); --glass-2: rgba(255,255,255,.68); --glass-hi: rgba(255,255,255,.85);
+    --stroke: rgba(255,255,255,.75); --stroke-2: rgba(20,20,30,.10); --grid: rgba(20,20,30,.065);
+    --shadow: 0 18px 50px -24px rgba(60,40,20,.35), inset 0 1px 0 rgba(255,255,255,.9);
+    --blob-1: rgba(255,170,110,.45); --blob-2: rgba(150,130,255,.38); --blob-3: rgba(90,210,190,.30); --blob-4: rgba(255,140,170,.25);
+    --done: #12a46b; --done-2: #0c8a59; --fail: #d98b00; --blocked: #dc4a4a; --run: #7c5cff; --run-2: #6244ea;
+    --accent: #3a6cf0; --accent-2: #6d93f5; --todo: rgba(20,20,30,.10); --nowline: #e5484d; --idle: rgba(20,20,30,.25);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] { color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  button { font: inherit; color: inherit; }
+  /* Backdrop: fixed, blurred colour lights */
+  .backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--bg); }
+  .backdrop i { position: absolute; border-radius: 50%; filter: blur(90px); }
+  .backdrop i:nth-child(1) { width: 52vw; height: 52vw; left: -12vw; top: -18vw; background: var(--blob-1); }
+  .backdrop i:nth-child(2) { width: 46vw; height: 46vw; right: -10vw; top: 6vh; background: var(--blob-2); }
+  .backdrop i:nth-child(3) { width: 40vw; height: 40vw; left: 30vw; bottom: -22vw; background: var(--blob-3); }
+  .backdrop i:nth-child(4) { width: 28vw; height: 28vw; right: 18vw; bottom: 6vh; background: var(--blob-4); }
+
+  .glass { background: var(--glass); border: 1px solid var(--stroke); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .page { max-width: 1880px; margin: 0 auto; padding: 18px clamp(16px, 2.2vw, 40px) 56px; }
+
+  /* ---------- Navigation ---------- */
+  nav.top { backdrop-filter: blur(22px) saturate(150%); -webkit-backdrop-filter: blur(22px) saturate(150%); background: color-mix(in srgb, var(--bg) 55%, transparent); }
+  nav.top { position: sticky; top: 12px; z-index: 20; display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 999px; margin-bottom: 26px; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 0 4px; font-weight: 700; letter-spacing: -.01em; font-size: 15px; white-space: nowrap; }
+  .brand-ring { width: 26px; height: 26px; border-radius: 50%; background: conic-gradient(from 210deg, #ff8a3d, var(--run), var(--accent), var(--done), #ff8a3d);
+    -webkit-mask: radial-gradient(circle, transparent 7px, #000 7.5px); mask: radial-gradient(circle, transparent 7px, #000 7.5px); }
+  .navlinks { display: flex; gap: 4px; margin: 0 auto; }
+  .navlinks a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; padding: 7px 14px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+  .navlinks a:hover { color: var(--text); background: var(--glass-2); }
+  .navlinks a.on { color: var(--text); background: var(--glass-hi); border-color: var(--stroke); }
+  .navright { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .status { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 999px; background: var(--glass-2); border: 1px solid var(--stroke); white-space: nowrap; }
+  .status .led { width: 8px; height: 8px; border-radius: 50%; background: var(--idle); }
+  .status.on .led { background: var(--done); animation: led 2s infinite; }
+  @keyframes led { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--done) 60%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .round { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--glass-2); border: 1px solid var(--stroke); cursor: pointer; }
+  .round:hover { background: var(--glass-hi); }
+  .round svg { width: 16px; height: 16px; }
+
+  /* ---------- Header ---------- */
+  .hello { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin: 0 4px 22px; }
+  .hello h1 { font-size: clamp(24px, 2.2vw, 34px); font-weight: 650; letter-spacing: -.025em; margin: 0; }
+  .hello p { margin: 4px 0 0; color: var(--muted); font-size: 14.5px; }
+  .hello p b { color: var(--text); font-weight: 600; }
+  .updated { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 8px; }
+  .updated .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--done); opacity: .25; transition: opacity .6s; }
+  .updated .pulse.on { opacity: 1; transition: none; }
+
+  /* ---------- Grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px; }
+  .s3 { grid-column: span 3; } .s4 { grid-column: span 4; } .s5 { grid-column: span 5; } .s7 { grid-column: span 7; } .s8 { grid-column: span 8; } .s9 { grid-column: span 9; }
+  .card { padding: 20px 22px; min-width: 0; position: relative; }
+  .card h2 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .card .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .section-gap { height: 18px; }
+
+  /* KPIs */
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
+  .kpi { position: relative; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; transition: transform .25s, background .25s; }
+  .kpi:hover { transform: translateY(-3px); background: var(--glass-2); }
+  .kpi .ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--glass-2); border: 1px solid var(--stroke); }
+  .kpi .ic svg { width: 16px; height: 16px; }
+  .kpi .l { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .kpi .v { font-size: clamp(20px, 1.6vw, 27px); font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+  .badges { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+    background: color-mix(in srgb, var(--done) 16%, transparent); color: var(--done); }
+  .badge.muted { background: var(--glass-2); color: var(--muted); }
+  .badge.warn { background: color-mix(in srgb, var(--fail) 18%, transparent); color: var(--fail); }
+  .spark { width: 110px; height: 38px; flex: none; overflow: visible; }
+  .kpi .spark { position: absolute; top: 16px; right: 18px; width: min(110px, 45%); }
+
+  /* Segmented controls */
+  .seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; padding: 3px; border-radius: 999px; background: var(--glass-2); border: 1px solid var(--stroke); }
+  .seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .seg button:hover { color: var(--text); }
+  .seg.lang button { padding: 5px 9px; font-size: 11.5px; font-weight: 600; letter-spacing: .03em; }
+  .seg button[aria-pressed="true"] { background: var(--glass-hi); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.12); }
+  .pillbtn { border: 1px solid var(--stroke); background: var(--glass-2); padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .pillbtn:hover, .pillbtn[aria-pressed="true"] { color: var(--text); background: var(--glass-hi); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  input[type=search] { font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--stroke); background: var(--glass-2);
+    color: var(--text); width: 200px; min-width: 0; outline: none; }
+  input[type=search]:focus { border-color: var(--accent); }
+  input[type=search]::placeholder { color: var(--faint); }
+
+  /* ---------- Gantt ---------- */
+  .gantt-card { display: flex; flex-direction: column; padding-bottom: 14px; }
+  .gantt { height: clamp(460px, 64vh, 760px); overflow: auto; position: relative; border-radius: 14px; border: 1px solid var(--stroke);
+    background: color-mix(in srgb, var(--glass) 60%, transparent); }
+  .g-inner { position: relative; min-width: 100%; }
+  .g-row { display: flex; height: 32px; border-bottom: 1px solid var(--grid); }
+  .g-row.blockhead { height: 36px; cursor: pointer; background: color-mix(in srgb, var(--glass-2) 70%, transparent); }
+  .g-label { position: sticky; left: 0; z-index: 2; flex: 0 0 var(--lw); width: var(--lw); padding: 0 14px; display: flex; align-items: center; gap: 9px;
+    font-size: 13px; white-space: nowrap; overflow: hidden; border-right: 1px solid var(--stroke);
+    background: var(--bg); }
+  .g-row.blockhead .g-label { font-weight: 650; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .g-row.blockhead .g-label .cnt { margin-left: auto; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .chev { display: inline-block; width: 10px; color: var(--muted); transition: transform .15s; }
+  .collapsed .chev { transform: rotate(-90deg); }
+  .fid { font-family: var(--mono); color: var(--faint); font-size: 11.5px; flex: none; }
+  .g-label .txt { overflow: hidden; text-overflow: ellipsis; }
+  .g-row.done .g-label .txt { color: var(--muted); }
+  .g-row.blocked .g-label .txt { text-decoration: line-through; color: var(--blocked); }
+  .g-row:not(.blockhead):hover { background: var(--grid); }
+  .g-track { position: relative; flex: none; }
+  .g-head { position: sticky; top: 0; z-index: 3; display: flex; height: 50px; border-bottom: 1px solid var(--stroke);
+    background: var(--bg); }
+  .g-head .g-label { z-index: 4; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; align-items: flex-end; padding-bottom: 9px; }
+  .tick { position: absolute; top: 0; bottom: 0; }
+  .tick span { position: absolute; left: 0; transform: translateX(-50%); font-size: 11.5px; color: var(--muted); white-space: nowrap; bottom: 8px; font-variant-numeric: tabular-nums; }
+  .tick.day span { transform: none; left: 8px; top: 6px; bottom: auto; font-weight: 650; color: var(--text); text-transform: uppercase; font-size: 10.5px; letter-spacing: .07em; }
+  .gridlines, .overlay { position: absolute; top: 0; bottom: 0; pointer-events: none; z-index: 0; }
+  .overlay { z-index: 1; }
+  .pauseband { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--blocked) 14%, transparent) 0 6px, transparent 6px 12px); border-left: 1px dashed color-mix(in srgb, var(--blocked) 60%, transparent); }
+  .pausetag { position: absolute; top: 3px; transform: translateX(4px); font-size: 10.5px; font-weight: 600; color: var(--blocked); white-space: nowrap; }
+  .gl { position: absolute; top: 50px; bottom: 0; border-left: 1px solid var(--grid); }
+  .gl.day { border-left-color: var(--stroke-2); }
+  .nowline { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+    background: linear-gradient(var(--nowline), color-mix(in srgb, var(--nowline) 15%, transparent)); box-shadow: 0 0 14px var(--nowline); }
+  .nowtag { position: absolute; top: 25px; transform: translateX(-50%); background: var(--nowline); color: #fff; font-size: 10px;
+    font-weight: 700; letter-spacing: .08em; padding: 2px 8px; border-radius: 999px; z-index: 4; pointer-events: none; box-shadow: 0 0 16px color-mix(in srgb, var(--nowline) 60%, transparent); }
+  .ev { position: absolute; top: 50px; bottom: 0; border-left: 1px dashed var(--fail); opacity: .45; }
+  .bar { position: absolute; top: 8px; height: 16px; border-radius: 6px; min-width: 4px; display: flex; overflow: hidden; }
+  .bar > i { height: 100%; display: block; }
+  .bar.pass { box-shadow: 0 0 14px -2px color-mix(in srgb, var(--done) 55%, transparent); }
+  .bar.pass > i { background: linear-gradient(180deg, color-mix(in srgb, var(--done) 75%, #fff), var(--done)); }
+  .bar.fail > i, .bar.qa_inconclusive > i { background: linear-gradient(180deg, color-mix(in srgb, var(--fail) 75%, #fff), var(--fail)); }
+  .bar > i + i { box-shadow: inset 1.5px 0 0 color-mix(in srgb, var(--bg) 75%, transparent); }  /* separates worker | verify | QA */
+  .bar.jr { border-top-right-radius: 0; border-bottom-right-radius: 0; }   /* back-to-back runs of the same feature: one bar */
+  .bar.jl { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; box-shadow: inset 1.5px 0 0 color-mix(in srgb, var(--bg) 75%, transparent); }
+  .bar.interrupted > i { background: var(--idle); }
+  .bar.running { background: repeating-linear-gradient(-45deg, var(--run) 0 7px, var(--run-2) 7px 14px); background-size: 200% 100%;
+    animation: stripes 1.2s linear infinite; box-shadow: 0 0 18px color-mix(in srgb, var(--run) 70%, transparent); }
+  @keyframes stripes { to { background-position: -40px 0; } }
+  @media (prefers-reduced-motion: reduce) { .bar.running, .status.on .led { animation: none; } }
+  .bar.est { background: var(--glass-2); border: 1px solid var(--stroke-2); }
+  .bar.est.next { border-color: var(--run); background: color-mix(in srgb, var(--run) 14%, transparent); }
+  .blab { position: absolute; top: 7px; font-size: 12.5px; white-space: nowrap; color: var(--text); pointer-events: none; }
+  .blab .m { color: var(--muted); }
+  .g-row.done .blab { color: var(--muted); }
+  .span { position: absolute; top: 13px; height: 9px; border-radius: 999px; display: flex; overflow: hidden; background: var(--todo); }
+  .span i { display: block; height: 100%; }
+  .nodate { position: absolute; top: 8px; font-size: 12px; color: var(--blocked); white-space: nowrap; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--muted); align-items: center; margin-top: 12px; }
+  .sw { display: inline-block; width: 18px; height: 9px; border-radius: 3px; margin-right: 7px; vertical-align: 0; }
+
+  /* ---------- Now ---------- */
+  .now-card { display: flex; flex-direction: column; gap: 22px; }
+  .now-id { font-family: var(--mono); font-size: 12px; color: var(--run); }
+  .now-title { font-size: 19px; font-weight: 650; letter-spacing: -.015em; margin: 2px 0 4px; }
+  .now-block { font-size: 12.5px; color: var(--muted); }
+  .timer { font-size: 38px; font-weight: 650; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .timer small { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+  .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .phase { padding: 9px 10px; border-radius: 12px; background: var(--glass-2); border: 1px solid var(--stroke); font-size: 12px; color: var(--muted); }
+  .phase b { display: block; color: var(--text); font-size: 12.5px; font-weight: 600; }
+  .phase.done { border-color: color-mix(in srgb, var(--done) 40%, transparent); }
+  .phase.done b::before { content: "✓ "; color: var(--done); }
+  .phase.on { border-color: var(--run); background: color-mix(in srgb, var(--run) 16%, transparent); }
+  .phase.on b::before { content: "● "; color: var(--run); }
+  .progress-line { height: 6px; border-radius: 999px; background: var(--todo); overflow: hidden; }
+  .progress-line i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--run-2), var(--run)); }
+  .muted-s { font-size: 12.5px; color: var(--muted); }
+  /* ---------- Blocks (rings) ---------- */
+  .rings { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .ringc { padding: 10px 6px 8px; border-radius: 16px; background: var(--glass-2); border: 1px solid var(--stroke); text-align: center; cursor: pointer; transition: background .2s, transform .2s; min-width: 0; }
+  .ringc:hover { background: var(--glass-hi); transform: translateY(-2px); }
+  .ringc.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .ringc svg { width: 50px; height: 50px; display: block; margin: 0 auto 6px; overflow: visible; }
+  .ringc .n { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ringc .c { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- Activity ---------- */
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .feed li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+  .feed li:last-child { border-bottom: 0; }
+  .feed .av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+  .feed .tx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .feed .tx small { display: block; color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+  .feed .ago { font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+
+  .note { color: var(--fail); white-space: pre-wrap; margin-top: 8px; }
+
+  /* ---------- Feature drawer ---------- */
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.28); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .drawer { position: fixed; top: 12px; right: 12px; bottom: 12px; width: min(560px, calc(100vw - 24px)); z-index: 41; background: var(--bg);
+    border: 1px solid var(--stroke-2); border-radius: 22px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.45); display: flex; flex-direction: column;
+    transform: translateX(calc(100% + 24px)); transition: transform .25s ease; overflow: hidden; }
+  .drawer.on { transform: none; }
+  .drawer .dh { padding: 20px 22px 14px; border-bottom: 1px solid var(--grid); display: flex; gap: 12px; align-items: flex-start; }
+  .drawer .dh h3 { margin: 2px 0 6px; font-size: 19px; font-weight: 650; letter-spacing: -.015em; }
+  .drawer .db { padding: 16px 22px 24px; overflow: auto; font-size: 13px; color: var(--muted); }
+  .drawer .db h4 { margin: 18px 0 8px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .drawer .db p { margin: 0 0 6px; color: var(--text); line-height: 1.55; }
+  .drawer .db ol, .drawer .db ul { margin: 4px 0 8px; padding-left: 18px; line-height: 1.55; }
+  .drawer code { font-family: var(--mono); font-size: 11.5px; background: var(--glass-2); border: 1px solid var(--stroke); padding: 1px 5px; border-radius: 6px; color: var(--text); word-break: break-word; }
+  .drawer pre { margin: 0; font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; word-break: break-all; background: var(--glass-2); border: 1px solid var(--stroke); padding: 8px 10px; border-radius: 10px; color: var(--text); }
+  .attempt { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--grid); }
+  .attempt:last-child { border-bottom: 0; }
+  .attempt small { display: block; color: var(--muted); white-space: pre-wrap; margin-top: 2px; }
+  .chip { display: inline-block; font-family: var(--mono); font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--glass-2); border: 1px solid var(--stroke); color: var(--text); cursor: pointer; margin: 0 4px 4px 0; }
+  .chip:hover { border-color: var(--accent); }
+  .g-row[data-id] .g-label { cursor: pointer; }
+  .g-row[data-id] .g-label:hover .txt { color: var(--accent); }
+  .g-row.sel .g-label { box-shadow: inset 3px 0 0 var(--accent); }
+  #logbox { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 11.5px; color: var(--muted); max-height: 300px; overflow: auto; line-height: 1.6; }
+  .empty { color: var(--muted); padding: 10px 2px; font-size: 13px; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1500px) {
+    .s9 { grid-column: span 12; }
+    .now-card.s3 { grid-column: span 12; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .s5 { grid-column: span 6; } .s7 { grid-column: span 6; } .s4 { grid-column: span 6; } .s3 { grid-column: span 12; }
+  }
+  @media (max-width: 900px) {
+    .navlinks { display: none; }
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .s3, .s4, .s5, .s7 { grid-column: span 12; }
+    .now-card.s3 { display: flex; }
+    .spark { width: 80px; }
+  }
+  @media (max-width: 560px) {
+    .page { padding-left: 12px; padding-right: 12px; }
+    .brand { font-size: 0; gap: 0; }
+    .kpis { grid-template-columns: minmax(0, 1fr); }
+    .card { padding: 16px; }
+    input[type=search] { width: 100%; }
+    .status .txt { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="page">
+  <nav class="top glass">
+    <div class="brand"><span class="brand-ring" aria-hidden="true"></span><span id="brandName">Roadmap</span></div>
+    <div class="navlinks">
+      <a href="#resumen" class="on" data-i18n="navSummary">Summary</a><a href="#gantt" data-i18n="gantt">Gantt</a><a href="#bloques" data-i18n="blocks">Blocks</a><a href="#registro" data-i18n="log">Log</a>
+    </div>
+    <div class="navright">
+      <span class="status" id="status"><span class="led"></span><span class="txt">—</span></span>
+      <div class="seg lang" role="group" data-i18n-aria="language" aria-label="Language">
+        <button data-lang="en" title="English">EN</button><button data-lang="es" title="Español">ES</button>
+      </div>
+      <button class="round" id="themeBtn" data-i18n-title="theme" data-i18n-aria="theme" title="Toggle theme" aria-label="Toggle theme"></button>
+    </div>
+  </nav>
+
+  <header class="hello" id="resumen">
+    <div><h1 id="greet">Hello</h1><p id="headline">Loading…</p></div>
+    <div class="updated"><span class="pulse" id="pulse"></span><span id="updated"></span></div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="grid">
+    <div class="card glass gantt-card s9" id="gantt">
+      <div class="card-head">
+        <div><h2 data-i18n="gantt">Gantt</h2><div class="sub" id="ganttSub"></div></div>
+        <div class="toolbar">
+          <input type="search" id="gq" data-i18n-ph="searchPh" data-i18n-aria="searchAria" placeholder="Search features…" aria-label="Search features in the Gantt">
+          <div class="seg" role="group" data-i18n-aria="view" aria-label="View">
+            <button data-view="features" data-i18n="features">Features</button><button data-view="blocks" data-i18n="blocks">Blocks</button>
+          </div>
+          <div class="seg" role="group" data-i18n-aria="zoom" aria-label="Zoom">
+            <button data-zoom="6h" data-i18n="z6h">6 h</button><button data-zoom="1d" data-i18n="z1d">1 day</button><button data-zoom="3d" data-i18n="z3d">3 days</button>
+            <button data-zoom="1w" data-i18n="z1w">Week</button><button data-zoom="1m" data-i18n="z1m">Month</button><button data-zoom="all" data-i18n="zAll">All</button>
+          </div>
+          <button class="pillbtn" id="hideDone" aria-pressed="false" data-i18n="hideDone">Hide done</button>
+          <button class="pillbtn" id="toggleAll" data-i18n="collapseAll">Collapse all</button>
+          <div class="seg" role="group" data-i18n-aria="navigate" aria-label="Navigate">
+            <button id="prev" data-i18n-aria="back" aria-label="Back">‹</button><button id="goNow" data-i18n="now">Now</button><button id="next" data-i18n-aria="forward" aria-label="Forward">›</button>
+          </div>
+        </div>
+      </div>
+      <div class="gantt" id="ganttBox"><div class="g-inner" id="ginner"></div></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--done)"></span><span data-i18n="lgDone">Done · worker, verify and QA</span></span>
+        <span><span class="sw" style="background:var(--fail)"></span><span data-i18n="lgFail">Failed attempt</span></span>
+        <span><span class="sw" style="background:repeating-linear-gradient(-45deg,var(--run) 0 4px,var(--run-2) 4px 8px)"></span><span data-i18n="lgRun">In progress</span></span>
+        <span><span class="sw" style="background:var(--idle)"></span><span data-i18n="lgInt">Interrupted</span></span>
+        <span><span class="sw" style="background:var(--glass-2);border:1px solid var(--stroke-2)"></span><span data-i18n="lgEst">Estimate</span></span>
+        <span><span class="sw" style="background:var(--nowline);width:3px"></span><span data-i18n="now">Now</span></span>
+        <span><span class="sw" style="border-left:1px dashed var(--fail);width:3px;border-radius:0"></span><span data-i18n="lgEv">Replan, sweep or restart</span></span>
+      </div>
+    </div>
+
+    <aside class="card glass now-card s3" id="nowCard"></aside>
+  </section>
+
+  <div class="section-gap"></div>
+  <section class="grid">
+    <div class="card glass s7" id="bloques">
+      <div class="card-head"><div><h2 data-i18n="blocks">Blocks</h2><div class="sub" data-i18n="blocksSub">Progress and expected finish of each block · click one to filter the Gantt</div></div></div>
+      <div class="rings" id="rings"></div>
+    </div>
+    <div class="card glass s5 log" id="registro">
+      <div class="card-head">
+        <div><h2 data-i18n="log">Log</h2><div class="sub" data-i18n="logSub">What the loop and the agents write, verbatim</div></div>
+        <div class="seg" role="group" data-i18n-aria="log" aria-label="Log">
+          <button data-log="loop" data-i18n="logLoop">Loop</button><button data-log="git" data-i18n="logGit">Commits</button><button data-log="decisions" data-i18n="logDec">Decisions</button>
+        </div>
+      </div>
+      <pre id="logbox"></pre>
+    </div>
+  </section>
+</div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" data-i18n-aria="drawer" aria-label="Feature details"></aside>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const COLORS = { done: "var(--done)", fail: "var(--fail)", blocked: "var(--blocked)", todo: "var(--todo)" };
+
+/* ---------- i18n ---------- */
+// Strings are plain text with {0}, {1}… placeholders, or functions when they need plurals or optional parts
+const I18N = {
+  en: {
+    locale: "en-US", roadmap: "Roadmap", navSummary: "Summary", gantt: "Gantt", blocks: "Blocks", log: "Log", language: "Language", theme: "Toggle theme",
+    hello: "Hello", loading: "Loading…", morning: "Good morning", afternoon: "Good afternoon", evening: "Good evening",
+    searchPh: "Search features…", searchAria: "Search features in the Gantt", view: "View", features: "Features", zoom: "Zoom",
+    z6h: "6 h", z1d: "1 day", z3d: "3 days", z1w: "Week", z1m: "Month", zAll: "All",
+    hideDone: "Hide done", collapseAll: "Collapse all", expandAll: "Expand all", navigate: "Navigate", back: "Back", forward: "Forward", now: "Now", nowTag: "NOW",
+    lgDone: "Done · worker, verify and QA", lgFail: "Failed attempt", lgRun: "In progress", lgInt: "Interrupted", lgEst: "Estimate", lgEv: "Replan, sweep or restart",
+    blocksSub: "Progress and expected finish of each block · click one to filter the Gantt",
+    logSub: "What the loop and the agents write, verbatim", logLoop: "Loop", logGit: "Commits", logDec: "Decisions", drawer: "Feature details",
+    other: "Other", min: "min", h: "h", d: "d", pct: "{0}%",
+    agoNow: "just now", agoMin: "{0} min ago", agoH: "{0} h ago", agoD: "{0} d ago",
+    outcome: { pass: "passed", fail: "failed", qa_inconclusive: "QA inconclusive", interrupted: "interrupted", running: "in progress" },
+    status1: { done: "Done", fail: "Failing", blocked: "Blocked", todo: "To do" },
+    stStopping: "Stopping for usage", stRunning: "Loop running", stPaused: "Paused for usage", stStopped: "Loop stopped", stOffline: "Can't reach the viewer",
+    hlError: "features.json unreadable: {0}",
+    hlStopping: "The loop will stop after the current feature to stay under <b>{0}%</b> of the 5-hour usage window",
+    hlRunning: (p, since) => `${p} is building itself${since ? `, nonstop since ${since}` : ""}`,
+    hlPaused: (n, auto, at) => `Paused to stay under ${n}% of the 5-hour usage window · ${auto ? `resumes on its own at <b>${at}</b>` : `resets at <b>${at}</b> (restart it by hand)`}`,
+    hlStopped: "The loop is stopped",
+    range: "between {0} and {1}", rangeLearning: "sharpens with more data",
+    guardOff: "guard off", guardStopping: "stops after this feature", guardPaused: "paused until {0}", guardOverride: "STOP removed by hand", guardAt: "stops at {0}%",
+    renews: "resets {0}", weekTitle: r => `7-day window${r ? ": resets " + r : ""}`, week: "7 d: {0}",
+    kProgress: "Progress", kDone: "{0} of {1} done", kFails: "{0} failing", kBlocked: n => `${n} blocked`,
+    kEta: "Estimated finish", kLeft: "{0} left", kPausesTitle: "Planned stops to stay under the 5-hour usage limit", kPauses: n => `incl. ${n} usage pause${n > 1 ? "s" : ""}`,
+    kPace: "Pace", perFeature: "~{0} / feature", in24: "{0} in 24 h",
+    paceTitle: "Per-feature forecast: what each feature really cost (failures, QA and sweeps included), weighting the latest ones more, allowing more time the more e2e tests it runs and following the upward trend. The margin is how far this same forecast fell short over the last 20 features",
+    rising: "rising {0} every 10", steady: "steady", margin: " · ×{0} margin",
+    kUsage: "5 h usage", renewed: "reset",
+    pauseTitle: "Pause for the 5-hour usage limit: {0} → {1}", pauseTag: "usage pause",
+    tipAttempt: "Attempt {0}: {1} → {2} ({3})", tipEst: "Estimate ~{0}: {1} → {2}",
+    nAttempts: " · {0} attempts", since: "since {0}", attemptN: " · attempt {0}", estAt: "est. {0}", nFails: n => ` · ${n} failure${n > 1 ? "s" : ""}`,
+    blocked: "blocked", noDate: "no date: depends on something blocked",
+    spanTip: "{0}: {1}/{2} done", estimated: " (estimated)", estEnd: "est. finish {0}", finishedAt: "finished {0}", clickTip: "(click for details)",
+    nothing: "Nothing to show.", hBlockFeature: "Block · Feature", hBlock: "Block",
+    filtered: "Filtered by “{0}” · click the block again to clear the filter", ganttSub: "What's done, what's running and the forecast",
+    attempt: "Attempt {0}", firstAttempt: "First attempt", inProgress: "In progress", of: "of ~{0}",
+    phWorker: "builds", phVerify: "tests", phQa: "reviews",
+    starting: "Starting…", pausedLimit: "Paused at the usage limit",
+    soon: "The current feature will show up in a few seconds.", whenRelaunched: "Once it restarts, you'll see the current feature, its phases and timing here.",
+    recent: "Recent activity", finished: "finished", endsAt: "ends {0}",
+    evDone: "{0} done", evFail: "{0} failed",
+    ev: { replan: "Replan", sweep: "Regression sweep", regression: "Regressions", start: "Loop started", stop: "Loop stopped", halt: "Loop halted", done: "Project finished", blocked: "Feature blocked" },
+    noActivity: "No activity yet.",
+    dDone: (d, n) => `Done in ${d}${n > 1 ? ` · ${n} attempts` : ""}`, dRunning: "In progress since {0}", dPlanned: "Expected {0} → {1} (~{2})", dNoDate: "No date: depends on something blocked",
+    iteration: "{0} · iteration {1}", close: "Close", steps: "Steps", dependsOn: "Depends on", neededBy: "Needed by", attempts: "Attempts",
+    agentDid: "What the agent did", noNotes: "No notes in PROGRESS.md yet.",
+    updated: "Last update: {0}", offline: "Offline · last data at {0}",
+  },
+  es: {
+    locale: "es-ES", roadmap: "Roadmap", navSummary: "Resumen", gantt: "Gantt", blocks: "Bloques", log: "Registro", language: "Idioma", theme: "Cambiar tema",
+    hello: "Hola", loading: "Cargando…", morning: "Buenos días", afternoon: "Buenas tardes", evening: "Buenas noches",
+    searchPh: "Buscar features…", searchAria: "Buscar features en el Gantt", view: "Vista", features: "Features", zoom: "Zoom",
+    z6h: "6 h", z1d: "1 día", z3d: "3 días", z1w: "Semana", z1m: "Mes", zAll: "Todo",
+    hideDone: "Ocultar hechas", collapseAll: "Plegar todo", expandAll: "Desplegar todo", navigate: "Navegar", back: "Atrás", forward: "Adelante", now: "Ahora", nowTag: "AHORA",
+    lgDone: "Hecha · worker, verify y QA", lgFail: "Intento fallido", lgRun: "En curso", lgInt: "Interrumpida", lgEst: "Estimación", lgEv: "Replan, barrido o reinicio",
+    blocksSub: "Avance y fin previsto de cada bloque · pulsa uno para filtrar el Gantt",
+    logSub: "Lo que escriben el bucle y los agentes, tal cual", logLoop: "Bucle", logGit: "Commits", logDec: "Decisiones", drawer: "Ficha de la feature",
+    other: "Otros", min: "min", h: "h", d: "d", pct: "{0} %",
+    agoNow: "ahora", agoMin: "hace {0} min", agoH: "hace {0} h", agoD: "hace {0} d",
+    outcome: { pass: "pasó", fail: "falló", qa_inconclusive: "QA sin veredicto", interrupted: "interrumpida", running: "en curso" },
+    status1: { done: "Hecha", fail: "Con fallos", blocked: "Bloqueada", todo: "Pendiente" },
+    stStopping: "Parará por uso", stRunning: "Bucle en marcha", stPaused: "En pausa por uso", stStopped: "Bucle parado", stOffline: "Sin conexión con el visor",
+    hlError: "features.json ilegible: {0}",
+    hlStopping: "El bucle se parará al terminar la feature en curso para no pasar del <b>{0} %</b> de uso de 5 h",
+    hlRunning: (p, since) => `${p} se está construyendo solo${since ? `, sin parar desde ${since}` : ""}`,
+    hlPaused: (n, auto, at) => `En pausa para no pasar del ${n} % de uso de 5 h · ${auto ? `vuelve sola a las <b>${at}</b>` : `se renueva a las <b>${at}</b> (relánzalo a mano)`}`,
+    hlStopped: "El bucle está parado",
+    range: "entre {0} y {1}", rangeLearning: "se afina con más datos",
+    guardOff: "vigilante apagado", guardStopping: "parará al acabar la feature", guardPaused: "en pausa hasta {0}", guardOverride: "STOP quitado a mano", guardAt: "para al {0} %",
+    renews: "se renueva {0}", weekTitle: r => `Ventana de 7 días${r ? ": se renueva " + r : ""}`, week: "7 d: {0}",
+    kProgress: "Progreso", kDone: "{0} de {1} hechas", kFails: "{0} con fallos", kBlocked: n => `${n} bloqueada${n > 1 ? "s" : ""}`,
+    kEta: "Fin estimado", kLeft: "quedan {0}", kPausesTitle: "Paradas previstas para no pasar del límite de uso de 5 h", kPauses: n => `incl. ${n} pausa${n > 1 ? "s" : ""} por uso`,
+    kPace: "Ritmo", perFeature: "~{0} / feature", in24: "{0} en 24 h",
+    paceTitle: "Previsión por feature: lo que de verdad ha costado cada una (con fallos, QA y barridos), dando más peso a las últimas, más tiempo cuantas más pruebas e2e lleve y siguiendo la tendencia a crecer. El margen es lo que este mismo cálculo se ha quedado corto en las últimas 20 features",
+    rising: "subiendo {0} cada 10", steady: "estable", margin: " · ×{0} de margen",
+    kUsage: "Uso 5 h", renewed: "renovado",
+    pauseTitle: "Pausa por el límite de uso de 5 h: {0} → {1}", pauseTag: "pausa uso",
+    tipAttempt: "Intento {0}: {1} → {2} ({3})", tipEst: "Estimación ~{0}: {1} → {2}",
+    nAttempts: " · {0} intentos", since: "desde {0}", attemptN: " · intento {0}", estAt: "est. {0}", nFails: n => ` · ${n} fallo${n > 1 ? "s" : ""}`,
+    blocked: "bloqueada", noDate: "sin fecha: depende de algo bloqueado",
+    spanTip: "{0}: {1}/{2} hechas", estimated: " (estimado)", estEnd: "fin est. {0}", finishedAt: "terminado {0}", clickTip: "(pulsa para ver la ficha)",
+    nothing: "Nada que mostrar.", hBlockFeature: "Bloque · Feature", hBlock: "Bloque",
+    filtered: "Filtrado por «{0}» · pulsa el bloque otra vez para quitar el filtro", ganttSub: "Lo hecho, lo que está en marcha y la previsión",
+    attempt: "Intento {0}", firstAttempt: "Primer intento", inProgress: "En curso", of: "de ~{0}",
+    phWorker: "implementa", phVerify: "tests", phQa: "audita",
+    starting: "Arrancando…", pausedLimit: "En pausa por el límite de uso",
+    soon: "En unos segundos aparecerá la feature en curso.", whenRelaunched: "Cuando se relance, aquí verás la feature en curso, sus fases y el tiempo.",
+    recent: "Actividad reciente", finished: "terminado", endsAt: "fin {0}",
+    evDone: "{0} completada", evFail: "{0} falló",
+    ev: { replan: "Replanificación", sweep: "Barrido de regresiones", regression: "Regresiones", start: "Bucle arrancado", stop: "Bucle parado", halt: "Bucle detenido", done: "Proyecto terminado", blocked: "Feature bloqueada" },
+    noActivity: "Sin actividad todavía.",
+    dDone: (d, n) => `Hecha en ${d}${n > 1 ? ` · ${n} intentos` : ""}`, dRunning: "En curso desde {0}", dPlanned: "Prevista {0} → {1} (~{2})", dNoDate: "Sin fecha: depende de algo bloqueado",
+    iteration: "{0} · iteración {1}", close: "Cerrar", steps: "Pasos", dependsOn: "Depende de", neededBy: "La necesitan", attempts: "Intentos",
+    agentDid: "Qué hizo el agente", noNotes: "Aún no hay notas en PROGRESS.md.",
+    updated: "Última actualización: {0}", offline: "Sin conexión · último dato a las {0}",
+  },
+};
+const pickLang = () => {
+  const q = new URLSearchParams(location.search).get("lang");
+  if (q in I18N) return q;
+  let v = null; try { v = localStorage.getItem("roadmap:lang"); } catch {}
+  if (v in I18N) return v;
+  return /^es\b/i.test(navigator.language || "") ? "es" : "en";
+};
+let lang = pickLang();
+function t(k, ...a) {
+  const v = I18N[lang][k] ?? I18N.en[k] ?? k;
+  return typeof v === "function" ? v(...a) : typeof v === "string" ? v.replace(/\{(\d+)\}/g, (_, i) => a[i]) : v;
+}
+const MIN = 60e3, HOUR = 3600e3, DAY = 86400e3;
+const ZOOMS = { "6h": 6 * HOUR, "1d": DAY, "3d": 3 * DAY, "1w": 7 * DAY, "1m": 30 * DAY };
+const DEFAULT_EST = 60 * MIN;      // per-feature estimate until there is real data
+const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const ICONS = {
+  check: svg('<path d="M20 6 9 17l-5-5"/>'),
+  flag: svg('<path d="M4 22V4a1 1 0 0 1 1-1h12l-2 5 2 5H5"/>'),
+  clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  bolt: svg('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
+  gauge: svg('<path d="M12 14l4-4"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/>'),
+  timer: svg('<path d="M10 2h4M12 14l3-3"/><circle cx="12" cy="14" r="8"/>'),
+  sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  moon: svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'),
+};
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("roadmap:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("roadmap:" + k, JSON.stringify(v)); } catch {} },
+};
+let data = null, M = null, block = null, lastOk = 0, sel = null;
+let view = store.get("view", "features"), zoom = store.get("zoom", "6h"), hideDone = store.get("hideDone", false);
+let logTab = store.get("logTab", "loop"); if (!["loop", "git", "decisions"].includes(logTab)) logTab = "loop";
+const collapsed = new Set(store.get("collapsed", []));
+const notes = new Map();   // id -> PROGRESS.md sections (fetched when the drawer opens)
+let firstGantt = true, G = null;
+
+/* ---------- Utilities ---------- */
+function status(f) { return f.passes ? "done" : f.blocked ? "blocked" : (f.attempts || 0) > 0 ? "fail" : "todo"; }
+function blockOf(f) { const m = /^\[([^\]]+)\]/.exec(f.description || ""); return m ? m[1] : t("other"); }
+function stripBlock(d) { return String(d || "").replace(/^\[[^\]]+\]\s*/, ""); }
+function short(f) { const s = stripBlock(f.description).split(/[:.(]/)[0].trim(); return s.length > 52 ? s.slice(0, 50) + "…" : s; }
+function dur(ms) {
+  if (ms == null || !isFinite(ms)) return "—";
+  const m = Math.max(0, Math.round(ms / MIN));
+  if (m < 60) return m + " " + t("min");
+  const h = Math.floor(m / 60), r = m % 60;
+  if (h < 48) return h + " " + t("h") + (r ? " " + r + " " + t("min") : "");
+  const d = Math.floor(h / 24), rh = h % 24;
+  return d + " " + t("d") + (rh ? " " + rh + " " + t("h") : "");
+}
+function clock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(ss).padStart(2, "0");
+}
+let fmtDT, fmtD, fmtH, fmtWD, fmtWH, fmtHMS;
+function setFormats() {
+  const F = o => new Intl.DateTimeFormat(t("locale"), o.hour ? { ...o, hourCycle: "h23" } : o);   // 24 h clock keeps labels compact
+  fmtDT = F({ weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  fmtD = F({ weekday: "short", day: "numeric", month: "short" });
+  fmtH = F({ hour: "2-digit", minute: "2-digit" });
+  fmtWD = F({ weekday: "short" });
+  fmtWH = F({ weekday: "short", hour: "2-digit", minute: "2-digit" });
+  fmtHMS = F({ hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+setFormats();
+const when = t => new Date(t).toDateString() === new Date(data.now).toDateString() ? fmtH.format(t) : fmtWH.format(t);
+function ago(ts) {
+  const m = Math.round((data.now - ts) / MIN);
+  if (m < 1) return t("agoNow"); if (m < 60) return t("agoMin", m);
+  const h = Math.round(m / 60); if (h < 24) return t("agoH", h);
+  return t("agoD", Math.round(h / 24));
+}
+function median(a) { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), k = s.length >> 1; return s.length % 2 ? s[k] : (s[k - 1] + s[k]) / 2; }
+function quantile(a, q) { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; }
+function groupsOf(feats) { const g = new Map(); feats.forEach(f => { const b = blockOf(f); if (!g.has(b)) g.set(b, []); g.get(b).push(f); }); return g; }
+function ring(pct, color, size, stroke, inner = "") {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r, off = c * (1 - Math.max(0, Math.min(1, pct))), h = size / 2;
+  return `<svg viewBox="0 0 ${size} ${size}"><circle cx="${h}" cy="${h}" r="${r}" fill="none" stroke="var(--todo)" stroke-width="${stroke}"/>
+    ${pct > 0 ? `<circle cx="${h}" cy="${h}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"
+      stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 ${h} ${h})" style="filter:drop-shadow(0 0 5px ${color})"/>` : ""}${inner}</svg>`;
+}
+let sparkId = 0;
+function sparkline(vals, color, kind = "line") {
+  const w = 110, h = 38;
+  if (vals.length < 2 || Math.max(...vals) === 0 && kind === "bars" && false) return "";
+  if (vals.length < 2) return `<svg class="spark" viewBox="0 0 ${w} ${h}"><path d="M0 ${h - 4} H${w}" stroke="var(--todo)" stroke-width="2" stroke-dasharray="3 4" fill="none"/></svg>`;
+  const max = Math.max(...vals, 1e-9), min = kind === "bars" ? 0 : Math.min(...vals);
+  const y = v => h - 3 - ((v - min) / ((max - min) || 1)) * (h - 8);
+  if (kind === "bars") {
+    const bw = w / vals.length;
+    return `<svg class="spark" viewBox="0 0 ${w} ${h}">${vals.map((v, i) =>
+      `<rect x="${(i * bw + 1).toFixed(1)}" y="${Math.min(y(v), h - 5).toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${Math.max(2, h - 3 - y(v)).toFixed(1)}" rx="1.5" fill="${color}" opacity="${i === vals.length - 1 ? 1 : .45}"/>`).join("")}</svg>`;
+  }
+  const pts = vals.map((v, i) => [i / (vals.length - 1) * w, y(v)]);
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const id = "sg" + (++sparkId);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1">
+    <stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${d} L${w} ${h} L0 ${h}Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="3" fill="${color}"/></svg>`;
+}
+
+/* ---------- Time model: what happened + the projection ---------- */
+// e2e tests run by a feature's verify (running the whole suite counts as 4): the main thing that makes a feature slow.
+// Counts *.spec/*.e2e/*.cy (js/ts) files named in the verify, plus the whole suite if Playwright or Cypress runs without a file
+function e2eCount(f) {
+  const v = f?.verify || "";
+  return (v.match(/[\w./-]+\.(?:spec|e2e|cy)\.[cm]?[jt]sx?\b/g) || []).length
+    + (/(?:playwright test|cypress run)(?:\s+(?:-c|--config)[= ]\S+)?\s*(?:&&|;|\||$)/m.test(v) ? 4 : 0);
+}
+// Weighted least squares with 3 coefficients: y ≈ c0 + c1·x1 + c2·x2
+function wls3(rows, ys, ws) {
+  const A = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+  rows.forEach((x, r) => { for (let i = 0; i < 3; i++) { for (let j = 0; j < 3; j++) A[i][j] += ws[r] * x[i] * x[j]; A[i][3] += ws[r] * x[i] * ys[r]; } });
+  for (let i = 0; i < 3; i++) A[i][i] += 1e-6;
+  for (let c = 0; c < 3; c++) {
+    let p = c; for (let r = c + 1; r < 3; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    [A[c], A[p]] = [A[p], A[c]];
+    for (let r = 0; r < 3; r++) if (r !== c) { const k = A[r][c] / A[c][c]; for (let j = c; j < 4; j++) A[r][j] -= k * A[c][j]; }
+  }
+  return [0, 1, 2].map(i => A[i][3] / A[i][i]);
+}
+function model() {
+  const now = data.now, feats = data.features;
+  const byId = new Map(feats.map(f => [f.id, f]));
+  const its = new Map();
+  for (const it of data.iterations) { if (!its.has(it.id)) its.set(it.id, []); its.get(it.id).push(it); }
+  const spent = id => (its.get(id) || []).reduce((a, it) => a + ((it.end ?? now) - it.start), 0);
+  const seen = new Set(), passes = [];
+  for (const it of data.iterations) if (it.outcome === "pass" && !seen.has(it.id)) { seen.add(it.id); passes.push({ id: it.id, t: it.end, dur: spent(it.id) }); }
+  const samples = passes.map(p => p.dur), n = samples.length;
+  const doneSeq = passes;
+
+  // Time with the loop running between two instants (minus stops: from each STOP to the next start)
+  const gaps = [];
+  const evs = [...data.events].sort((a, b) => a.ts - b.ts);
+  evs.forEach((e, i) => { if (["stop", "halt", "done"].includes(e.kind)) { const nx = evs.slice(i + 1).find(x => x.kind === "start"); if (nx) gaps.push([e.ts, nx.ts]); } });
+  const active = (a, b) => gaps.reduce((t, [g0, g1]) => t - Math.max(0, Math.min(b, g1) - Math.max(a, g0)), b - a);
+
+  // Real cost of each feature: loop-running time since the previous one passed (includes failures, QA,
+  // regression sweeps and gaps; not usage pauses, which are simulated separately)
+  const wall = passes.map((p, k) => k ? active(passes[k - 1].t, p.t) : p.dur);
+  const e2e = passes.map(p => e2eCount(byId.get(p.id)));
+  // Forecast from data up to pass k: cost ≈ c0 + c1·(e2e tests) + c2·(order), weighted so the latest ones
+  // dominate (half-life of 25 features), clamped between 0.5 and 3 times the mean of the last 10
+  const fitAt = k => {
+    if (k < 8) return null;
+    const idx = []; for (let i = 1; i < k; i++) idx.push(i);
+    const c = wls3(idx.map(i => [1, e2e[i], i]), idx.map(i => wall[i]), idx.map(i => 0.5 ** ((k - 1 - i) / 25)));
+    const rec = wall.slice(k - 10, k).reduce((a, b) => a + b, 0) / 10;
+    return (i, f) => Math.min(3 * rec, Math.max(0.5 * rec, 5 * MIN, c[0] + c[1] * e2eCount(f) + c[2] * i));
+  };
+  const fit = fitAt(n);
+  const recent = n ? wall.slice(-10).reduce((a, b) => a + b, 0) / Math.min(10, n) : DEFAULT_EST;
+  // Self-calibration: how long the 20 features after each point in history really took versus what this same
+  // model would have predicted. The median of the 10 most recent windows is the margin (≥ 1);
+  // the spread of all of them gives the range
+  const W = 20, ratios = [];
+  for (let j = 30; j + W <= n; j++) {
+    const f0 = fitAt(j); let p = 0, a = 0;
+    for (let i = j; i < j + W; i++) { p += f0(i, byId.get(passes[i].id)); a += wall[i]; }
+    ratios.push(a / p);
+  }
+  const ok = ratios.length >= 3;
+  const calib = ok ? Math.min(1.6, Math.max(1, median(ratios.slice(-10)))) : 1.2;
+  const mid = ok ? median(ratios) : 1;
+  const lo = ok ? quantile(ratios, .2) / mid : 0.8, hi = ok ? quantile(ratios, .8) / mid : 1.4;
+  const perFeat = (i, f) => fit ? fit(i, f) * calib : DEFAULT_EST;
+  const trend = fit ? (fit(n + 10) - fit(n)) * calib : 0;
+
+  // 5-hour window usage: how much the loop burns per minute and where the guard will stop it
+  const U = data.usage || {}, gd = U.guard, guardOn = !!gd && now - gd.updated < 120e3;
+  let du = 0, dt = 0;
+  for (const s of (U.per_iter || []).slice(-15)) if (s.end && s.r0 === s.r1 && s.u1 >= s.u0) { du += s.u1 - s.u0; dt += s.end - s.start; }
+  const rate = dt > 30 * MIN ? du / dt : 0;              // window fraction per ms of loop time
+  const limit = guardOn ? gd.limit / 100 : 1, margin = guardOn ? gd.margin / 100 : 0;
+  const L = U.latest, fresh = L && L.r5 > now;
+  let util = fresh ? L.u5 : 0, reset = fresh ? L.r5 : null;
+  const pauses = [];
+  const paused = guardOn && gd.state === "paused" && !data.running;
+  let cursor = now;
+  if (paused) {
+    if (gd.auto_resume && gd.reset_at > now) { pauses.push({ start: now, end: gd.reset_at }); cursor = gd.reset_at + MIN; }
+    util = 0; reset = null;
+  }
+  const spend = d => {                                    // advance the simulated clock by a feature of duration d
+    if (reset && cursor >= reset) { util = 0; reset = null; }
+    if (reset && rate && util + margin >= limit) { pauses.push({ start: cursor, end: reset }); cursor = reset + MIN; util = 0; reset = null; }
+    if (!reset) reset = cursor + 5 * HOUR;
+    const s = cursor; cursor += d; util += rate * d; return s;
+  };
+
+  // Simulate the harness order: lowest priority with dependencies met
+  const running = data.iterations.find(it => it.outcome === "running");
+  const proj = new Map(), order = [], full = new Map();
+  let idx = n;
+  if (running) {
+    const e = perFeat(idx++, byId.get(running.id)); full.set(running.id, e);
+    const left = Math.max(5 * MIN, e - (n ? active(passes[n - 1].t, now) : spent(running.id)));
+    proj.set(running.id, { start: now, end: now + left, next: true });
+    if (!reset) reset = now + 5 * HOUR;
+    cursor = now + left; util += rate * left;
+  }
+  const done = new Set(feats.filter(f => f.passes).map(f => f.id));
+  if (running) done.add(running.id);
+  let pending = feats.filter(f => !f.passes && !f.blocked && !(running && f.id === running.id));
+  let first = !running;
+  while (pending.length) {
+    const ready = pending.filter(f => (f.depends_on || []).every(d => done.has(d))).sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+    if (!ready.length) break;
+    const f = ready[0], e = perFeat(idx++, f), s = spend(e);
+    full.set(f.id, e);
+    proj.set(f.id, { start: s, end: s + e, next: first }); order.push(f); first = false;
+    done.add(f.id); pending = pending.filter(x => x !== f);
+  }
+  const est = f => full.get(f.id) ?? perFeat(n, f);
+  const pace = full.size ? [...full.values()].reduce((a, b) => a + b, 0) / full.size : perFeat(n);
+  const unreachable = new Set(pending.map(f => f.id));
+  const remaining = feats.filter(f => !f.passes && !f.blocked).length;
+  const eta = proj.size ? Math.max(...[...proj.values()].map(p => p.end)) : null;
+  const pauseMs = pauses.reduce((a, p) => a + p.end - p.start, 0);
+  const etaLo = eta && now + (eta - now - pauseMs) * lo + pauseMs, etaHi = eta && now + (eta - now - pauseMs) * hi + pauseMs;
+  const totalSpent = data.iterations.reduce((a, it) => a + ((it.end ?? now) - it.start), 0);
+  const last24 = doneSeq.filter(d => d.t >= now - DAY).length;
+  const usage = { guardOn, gd, rate, limit, util: fresh ? L.u5 : null, reset: fresh ? L.r5 : null, u7: L?.u7, r7: L?.r7, paused };
+  return { now, byId, its, spent, est, perFeat, pace, calib, trend, recent, proj, order, unreachable, eta, etaLo, etaHi, remaining, samples, totalSpent, last24, running, doneSeq, pauses, usage };
+}
+
+/* ---------- Render ---------- */
+// Rewriting innerHTML with the same content resets hover, focus and animations (the "flicker"): only write on change
+function setHTML(el, html) { if (el.__html !== html) { el.__html = html; el.innerHTML = html; } }
+function render() {
+  if (!data) return;
+  M = model();
+  renderTop(); renderKpis(); renderGantt(); renderNow(); renderRings(); renderLog(); renderDrawer();
+}
+
+function renderTop() {
+  const h = new Date(data.now).getHours();
+  $("greet").textContent = t(h >= 6 && h < 14 ? "morning" : h >= 14 && h < 21 ? "afternoon" : "evening") + (data.user ? ", " + data.user : "");
+  $("brandName").textContent = (data.project ? data.project + " · " : "") + t("roadmap"); document.title = $("brandName").textContent;
+  const st = $("status");
+  st.className = "status" + (data.running ? " on" : "");
+  const gu = M.usage, stopping = gu.guardOn && gu.gd.state === "stopping" && data.running;
+  st.querySelector(".txt").textContent = stopping ? t("stStopping") : data.running ? t("stRunning") : gu.paused ? t("stPaused") : t("stStopped");
+  const since = data.events.filter(e => e.kind === "start").at(-1);
+  setHTML($("headline"), data.error ? `<span style="color:var(--blocked)">${t("hlError", esc(data.error))}</span>`
+    : stopping ? t("hlStopping", Math.round(gu.limit * 100))
+    : data.running ? t("hlRunning", esc(data.project), since && when(since.ts))
+    : gu.paused ? t("hlPaused", Math.round(gu.limit * 100), gu.gd.auto_resume, when(gu.gd.auto_resume ? gu.gd.reset_at + MIN : gu.gd.reset_at))
+    : t("hlStopped"));
+}
+
+function renderKpis() {
+  const feats = data.features, done = feats.filter(f => f.passes).length, total = feats.length || 1;
+  const cum = [0, ...M.doneSeq.map((_, i) => i + 1)];
+  const durs = M.doneSeq.slice(-24).map(d => d.dur / MIN);
+  const range = M.eta && M.samples.length >= 3 ? t("range", when(M.etaLo), when(M.etaHi))
+    : M.samples.length ? t("rangeLearning") : `~${dur(DEFAULT_EST)}/feature`;
+  const u = M.usage, pct = x => t("pct", Math.round(x * 100));
+  const uses = (data.usage?.per_iter || []).filter(s => s.end).slice(-24).map(s => s.u1 * 100);
+  const gstate = !u.guardOn ? `<span class="badge warn">${t("guardOff")}</span>`
+    : u.gd.state === "stopping" ? `<span class="badge warn">${t("guardStopping")}</span>`
+    : u.paused ? `<span class="badge warn">${t("guardPaused", when(u.gd.reset_at))}</span>`
+    : u.gd.state === "override" ? `<span class="badge warn">${t("guardOverride")}</span>`
+    : `<span class="badge">${t("guardAt", Math.round(u.limit * 100))}</span>`;
+  const renew = u.reset ? `<span class="badge muted">${t("renews", when(u.reset))}</span>` : "";
+  const week = u.u7 != null ? `<span class="badge muted" title="${t("weekTitle", u.r7 && fmtDT.format(u.r7))}">${t("week", pct(u.u7))}</span>` : "";
+  const fails = feats.filter(f => !f.passes && (f.attempts || 0) > 0).length, blocked = feats.filter(f => f.blocked).length;
+  const cards = [
+    ["check", "var(--done)", t("kProgress"), pct(done / total), `<span class="badge">${t("kDone", done, feats.length)}</span>` +
+      (fails ? `<span class="badge warn">${t("kFails", fails)}</span>` : "") + (blocked ? `<span class="badge warn">${t("kBlocked", blocked)}</span>` : ""), sparkline(cum, "var(--done)")],
+    ["flag", "var(--accent)", t("kEta"), M.eta ? fmtDT.format(M.eta) : "—", (M.eta ? `<span class="badge">${t("kLeft", dur(M.eta - M.now))}</span>` : "") + `<span class="badge muted">${esc(range)}</span>` +
+      (M.pauses.length ? `<span class="badge muted" title="${t("kPausesTitle")}">${t("kPauses", M.pauses.length)}</span>` : ""), ""],
+    ["clock", "var(--run)", t("kPace"), M.samples.length ? t("perFeature", dur(M.pace)) : "—",
+      `<span class="badge muted">${t("in24", M.last24)}</span>` + (M.samples.length ? `<span class="badge muted" title="${t("paceTitle")}">${M.trend > 30e3 ? t("rising", dur(M.trend)) : t("steady")}${M.calib > 1.02 ? t("margin", M.calib.toFixed(2)) : ""}</span>` : ""), sparkline(durs, "var(--run)")],
+    ["gauge", u.util != null && u.util >= u.limit - .1 ? "var(--fail)" : "var(--done)", t("kUsage"), u.util != null ? pct(u.util) : u.paused ? t("renewed") : "—", gstate + renew + week, sparkline(uses, "var(--done)")],
+  ];
+  setHTML($("kpis"), cards.map(([ic, col, l, v, badge, sp]) => `<div class="glass kpi">
+      <span class="ic" style="color:${col}">${ICONS[ic]}</span>
+      <div class="l">${l}</div>
+      <div class="row"><div style="min-width:0"><div class="v" title="${esc(v)}">${esc(v)}</div><div class="badges">${badge}</div></div>${sp}</div>
+    </div>`).join(""));
+}
+
+/* ---------- Gantt ---------- */
+function ticksFor(t0, t1, pxPerMs) {
+  const steps = [15 * MIN, 30 * MIN, HOUR, 2 * HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY];
+  const step = steps.find(s => s * pxPerMs >= 72) || 7 * DAY;
+  const out = [], d = new Date(t0); d.setHours(0, 0, 0, 0);
+  for (let t = d.getTime(); t <= t1; ) {
+    if (t >= t0) out.push({ t, day: new Date(t).getHours() === 0 && new Date(t).getMinutes() === 0 });
+    if (step >= DAY) { const n = new Date(t); n.setDate(n.getDate() + step / DAY); t = n.getTime(); } else t += step;
+  }
+  return { out, step };
+}
+
+function renderGantt() {
+  const g = $("ganttBox"), inner = $("ginner");
+  const keepX = g.scrollLeft, keepY = g.scrollTop, prevG = G;
+  const lw = window.innerWidth < 560 ? 140 : window.innerWidth < 1500 ? 260 : 300;
+  inner.style.setProperty("--lw", lw + "px");
+  const feats = data.features;
+
+  const starts = data.iterations.map(i => i.start), ends = [...M.proj.values()].map(p => p.end);
+  let t0 = Math.min(M.now, ...starts), t1 = Math.max(M.now + HOUR, ...ends, ...data.iterations.map(i => i.end ?? M.now));
+  const pad = Math.max(20 * MIN, (t1 - t0) * 0.015);
+  t0 -= pad; t1 += pad * 3;
+  const avail = Math.max(300, g.clientWidth - lw - 2);
+  const winMs = ZOOMS[zoom] || (t1 - t0);
+  if (ZOOMS[zoom]) t1 = Math.max(t1, t0 + winMs);
+  const pxPerMs = avail / winMs, W = Math.ceil((t1 - t0) * pxPerMs), X = t => (t - t0) * pxPerMs;
+
+  const { out: ticks, step } = ticksFor(t0, t1, pxPerMs);
+  const showDates = step >= DAY;
+  let head = "", lines = "";
+  for (const p of M.pauses) {
+    lines += `<div class="pauseband" style="left:${X(p.start)}px;width:${Math.max(2, X(p.end) - X(p.start))}px"></div>`;
+    head += `<div class="pausetag" style="left:${X(p.start)}px" title="${t("pauseTitle", fmtH.format(p.start), fmtH.format(p.end))}">${t("pauseTag")}</div>`;
+  }
+  for (const k of ticks) {
+    lines += `<div class="gl${k.day ? " day" : ""}" style="left:${X(k.t)}px"></div>`;
+    if (k.day) head += `<div class="tick day" style="left:${X(k.t)}px"><span>${esc(fmtD.format(k.t))}</span></div>`;
+    if (!showDates && Math.abs(X(k.t) - X(M.now)) > 45) head += `<div class="tick" style="left:${X(k.t)}px"><span>${fmtH.format(k.t)}</span></div>`;
+  }
+  if (!ticks.some(k => k.day && X(k.t) < 160)) head = `<div class="tick day" style="left:0"><span>${esc(fmtD.format(t0))}</span></div>` + head;
+  const evs = data.events.filter(e => ["replan", "sweep", "start", "stop", "halt"].includes(e.kind))
+    .map(e => `<div class="ev" style="left:${X(e.ts)}px" title="${esc(fmtDT.format(e.ts) + " · " + e.text)}"></div>`).join("");
+
+  const segsFor = f => {
+    let h = "", right = null, txt = "";
+    const list = M.its.get(f.id) || [];
+    const p = M.proj.get(f.id);
+    list.forEach((it, k) => {
+      const nx = list[k + 1], end = it.end ?? M.now;
+      const joinR = nx ? nx.start - end < 2 * MIN : it.outcome === "running" && !!p;
+      const joinL = k > 0 && it.start - (list[k - 1].end ?? M.now) < 2 * MIN;
+      const w = X(joinR && nx ? nx.start : end) - X(it.start);
+      const tip = `${f.id} · ${short(f)}\n` + t("tipAttempt", t("outcome")[it.outcome] || it.outcome, fmtDT.format(it.start), it.end ? fmtH.format(it.end) : t("now").toLowerCase(), dur(end - it.start)) +
+        (it.worker_end ? `\nworker ${dur(it.worker_end - it.start)}` : "") +
+        (it.verify_end ? ` · verify ${dur(it.verify_end - it.worker_end)} · QA ${dur(end - it.verify_end)}` : "") + (it.reason ? `\n${it.reason}` : "");
+      let inn = "";
+      if (it.outcome !== "running" && it.worker_end) {
+        const tot = end - it.start || 1, ww = (it.worker_end - it.start) / tot * 100, vv = it.verify_end ? (it.verify_end - it.worker_end) / tot * 100 : 0;
+        inn = `<i class="w" style="width:${ww}%"></i>` + (vv ? `<i class="v" style="width:${vv}%"></i>` : "") + `<i class="q" style="flex:1"></i>`;
+      } else if (it.outcome !== "running") inn = `<i class="w" style="flex:1"></i>`;
+      const live = it.outcome === "running" && !(joinR && nx) ? ` data-start="${it.start}"` : "";
+      h += `<div class="bar ${it.outcome}${joinR ? " jr" : ""}${joinL ? " jl" : ""}"${live} style="left:${X(it.start)}px;width:${Math.max(4, w)}px" title="${esc(tip)}">${inn}</div>`;
+      right = Math.max(right ?? 0, X(it.start) + Math.max(4, w));
+    });
+    if (p) {
+      const s = Math.max(p.start, M.now), cont = list.at(-1)?.outcome === "running";
+      h += `<div class="bar est${p.next ? " next" : ""}${cont ? " jl" : ""}" data-s="${p.start}" data-e="${p.end}" style="left:${X(s)}px;width:${Math.max(4, X(p.end) - X(s))}px"
+        title="${esc(`${f.id} · ${short(f)}\n` + t("tipEst", dur(p.end - p.start), fmtDT.format(p.start), fmtDT.format(p.end)))}"></div>`;
+      right = Math.max(right ?? 0, X(p.end));
+    }
+    const n = list.length;
+    if (f.passes) txt = `${esc(short(f))} <span class="m">· ${dur(M.spent(f.id))}${n > 1 ? t("nAttempts", n) : ""}</span>`;
+    else if (M.running && M.running.id === f.id) txt = `${esc(short(f))} <span class="m">· ${t("since", when(M.running.start))}${n > 1 ? t("attemptN", n) : ""}</span>`;
+    else if (p) txt = `${esc(short(f))} <span class="m">· ${t("estAt", when(p.start))}${n ? t("nFails", n) : ""}</span>`;
+    else if (f.blocked) h += `<span class="nodate" style="left:${X(M.now) + 10}px">${t("blocked")}</span>`;
+    if (M.unreachable.has(f.id)) h += `<span class="nodate" style="left:${X(M.now) + 10}px">${t("noDate")}</span>`;
+    if (txt && right != null) h += `<span class="blab" style="left:${right + 9}px">${txt}</span>`;
+    return h;
+  };
+  const spanFor = (fs, withLabel) => {
+    const real = fs.flatMap(f => M.its.get(f.id) || []), pr = fs.map(f => M.proj.get(f.id)).filter(Boolean);
+    if (!real.length && !pr.length) return "";
+    const a = Math.min(...real.map(i => i.start), ...pr.map(p => Math.max(M.now, p.start)));
+    const realEnd = real.length ? Math.max(...real.map(i => i.end ?? M.now)) : a;
+    const b = Math.max(realEnd, ...pr.map(p => p.end)), tot = Math.max(1, b - a), now = Math.min(Math.max(M.now, a), b);
+    const doneW = (Math.min(realEnd, now) - a) / tot * 100, running = real.some(i => i.outcome === "running");
+    const dn = fs.filter(f => f.passes).length;
+    const tip = t("spanTip", blockOf(fs[0]), dn, fs.length) + `\n${fmtDT.format(a)} → ${fmtDT.format(b)}${pr.length ? t("estimated") : ""}`;
+    let h = `<div class="span" style="left:${X(a)}px;width:${Math.max(6, X(b) - X(a))}px" title="${esc(tip)}">
+      <i style="width:${doneW}%;background:linear-gradient(90deg,var(--done-2),var(--done))"></i>${running ? `<i style="width:6px;background:var(--run)"></i>` : ""}</div>`;
+    if (withLabel) h += `<span class="blab" style="left:${X(b) + 9}px;top:9px"><span class="m">${t(pr.length ? "estEnd" : "finishedAt", when(b))}</span></span>`;
+    return h;
+  };
+
+  const q = $("gq").value.trim().toLowerCase();
+  const match = f => !q || (f.id + " " + f.description).toLowerCase().includes(q);
+  const row = (cls, label, track, title = "", attrs = "") =>
+    `<div class="g-row ${cls}" ${attrs}><div class="g-label" title="${esc(title)}">${label}</div><div class="g-track" style="width:${W}px">${track}</div></div>`;
+  let rows = "";
+  for (const [name, fs] of groupsOf(feats)) {
+    if (block && name !== block) continue;
+    const dn = fs.filter(f => f.passes).length;
+    const s = dn === fs.length ? "done" : fs.some(f => f.blocked) ? "blocked" : fs.some(f => (f.attempts || 0) > 0 && !f.passes) ? "fail" : "todo";
+    if (view === "blocks") {
+      if (q && !fs.some(match)) continue;
+      rows += row(dn === fs.length ? "done" : "", `<span class="dot" style="background:${COLORS[s]}"></span><span class="txt">${esc(name)}</span><span class="fid" style="margin-left:auto">${dn}/${fs.length}</span>`, spanFor(fs, true), name);
+      continue;
+    }
+    const list = fs.filter(f => match(f) && !(hideDone && f.passes));
+    if (!list.length) continue;
+    const isCol = collapsed.has(name) && !q;
+    rows += row("blockhead" + (isCol ? " collapsed" : ""), `<span class="chev">▾</span>${esc(name)}<span class="cnt">${dn}/${fs.length}</span>`, spanFor(fs, isCol), name, `data-block="${esc(name)}"`);
+    if (isCol) continue;
+    for (const f of list) {
+      const st = status(f);
+      rows += row((st === "done" ? "done" : st === "blocked" ? "blocked" : "") + (sel === f.id ? " sel" : ""),
+        `<span class="dot" style="background:${COLORS[st]}"></span><span class="fid">${esc(f.id)}</span><span class="txt">${esc(short(f))}</span>`, segsFor(f), f.id + " · " + stripBlock(f.description) + "\n" + t("clickTip"), `data-id="${esc(f.id)}"`);
+    }
+  }
+  if (!rows) rows = `<div class="empty" style="padding:16px">${t("nothing")}</div>`;
+  inner.style.width = (lw + W) + "px";
+  setHTML(inner, `<div class="gridlines" style="left:${lw}px;width:${W}px">${lines}</div>` +
+    `<div class="g-head"><div class="g-label">${t(view === "features" ? "hBlockFeature" : "hBlock")}</div><div class="g-track" style="width:${W}px">${head}<div class="nowtag" style="left:${X(M.now)}px">${t("nowTag")}</div></div></div>` +
+    rows + `<div class="overlay" style="left:${lw}px;width:${W}px">${evs}<div class="nowline" style="left:${X(M.now)}px"></div></div>`);
+  $("toggleAll").textContent = t(collapsed.size ? "expandAll" : "collapseAll");
+  $("ganttSub").textContent = block ? t("filtered", block) : t("ganttSub");
+
+  G = { X, t0, pxPerMs, lw, zoom };
+  if (firstGantt || (prevG && prevG.zoom !== zoom)) {
+    const center = firstGantt || !prevG ? null : prevG.t0 + (keepX + (g.clientWidth - prevG.lw) / 2) / prevG.pxPerMs;
+    firstGantt = false;
+    if (center == null) scrollToNow(); else { g.scrollLeft = Math.max(0, X(center) - (g.clientWidth - lw) / 2); g.scrollTop = keepY; }
+  } else { g.scrollLeft = keepX; g.scrollTop = keepY; }
+}
+function scrollToNow() {
+  const g = $("ganttBox"); if (!data || !G) return;
+  g.scrollLeft = Math.max(0, G.X(data.now) - (g.clientWidth - G.lw) * 0.55);
+  const cur = g.querySelector(".bar.running, .bar.est.next");
+  if (cur) g.scrollTop = Math.max(0, cur.closest(".g-row").offsetTop - g.clientHeight * 0.4);
+}
+
+/* ---------- Now ---------- */
+function renderNow() {
+  const it = M.running, f = it && M.byId.get(it.id);
+  let main;
+  if (it && f) {
+    const spent = M.now - it.start, est = M.est(f), pct = Math.min(1, spent / est);
+    const n = (M.its.get(f.id) || []).length, ph = it.phase === "qa" ? 2 : 0;
+    const cls = k => k < ph ? "phase done" : k === ph ? "phase on" : "phase";
+    main = `<div>
+        <div class="card-head" style="margin-bottom:10px"><div><h2>${t("now")}</h2><div class="sub">${n > 1 ? t("attempt", n) : t("firstAttempt")}</div></div>
+          <span class="badge" style="background:color-mix(in srgb,var(--run) 18%,transparent);color:var(--run)">${t("inProgress")}</span></div>
+        <div class="now-id">${esc(f.id)}</div><div class="now-title">${esc(short(f))}</div><div class="now-block">${esc(blockOf(f))} · ${t("since", when(it.start))}</div>
+      </div>
+      <div class="timer" id="nowTimer">${clock(spent)}<small>${t("of", dur(est))}</small></div>
+      <div class="progress-line"><i id="nowBar" style="width:${pct * 100}%"></i></div>
+      <div class="phases"><div class="${cls(0)}"><b>Worker</b>${t("phWorker")}</div><div class="${cls(1)}"><b>Verify</b>${t("phVerify")}</div><div class="${cls(2)}"><b>QA</b>${t("phQa")}</div></div>
+      ${f.notes ? `<div class="note" style="font-size:12.5px;margin:0">${esc(f.notes.slice(0, 260))}</div>` : ""}`;
+  } else {
+    const gp = M.usage.paused;
+    main = `<div><div class="card-head" style="margin-bottom:8px"><div><h2>${t("now")}</h2><div class="sub">${data.running ? t("starting") : gp ? t("pausedLimit") : t("hlStopped")}</div></div></div>
+      <div class="muted-s">${data.running ? t("soon") : t("whenRelaunched")}</div></div>`;
+  }
+  setHTML($("nowCard"), `<div style="display:flex;flex-direction:column;gap:16px">${main}</div><div><h2 style="margin-bottom:4px">${t("recent")}</h2><ul class="feed">${feedHTML()}</ul></div>`);
+}
+function tickNow() {
+  if (G && data) {  // the "now" line and what depends on it move without redrawing the Gantt (that restarts animations)
+    const now = data.now + (Date.now() - lastOk), xn = G.X(now), gi = $("ginner");
+    gi.querySelectorAll(".nowline, .nowtag").forEach(el => el.style.left = xn + "px");
+    gi.querySelectorAll(".bar[data-start]").forEach(el => el.style.width = Math.max(4, xn - G.X(+el.dataset.start)) + "px");
+    gi.querySelectorAll(".bar[data-e]").forEach(el => { const x0 = G.X(Math.max(+el.dataset.s, now)); el.style.left = x0 + "px"; el.style.width = Math.max(4, G.X(+el.dataset.e) - x0) + "px"; });
+  }
+  if (!data || !M || !M.running) return;
+  const f = M.byId.get(M.running.id); if (!f) return;
+  const spent = data.now + (Date.now() - lastOk) - M.running.start, est = M.est(f);
+  const tm = $("nowTimer"), b = $("nowBar");
+  if (tm) tm.innerHTML = `${clock(spent)}<small>${t("of", dur(est))}</small>`;
+  if (b) b.style.width = Math.min(100, spent / est * 100) + "%";
+}
+
+/* ---------- Blocks ---------- */
+function renderRings() {
+  setHTML($("rings"), [...groupsOf(data.features)].map(([name, fs]) => {
+    const dn = fs.filter(f => f.passes).length, pct = dn / fs.length;
+    const col = dn === fs.length ? "var(--done)" : fs.some(f => f.blocked) ? "var(--blocked)" : fs.some(f => M.running && f.id === M.running.id) ? "var(--run)"
+      : fs.some(f => (f.attempts || 0) > 0 && !f.passes) ? "var(--fail)" : "var(--accent)";
+    const ends = fs.map(f => M.proj.get(f.id)?.end).filter(Boolean);
+    const sub = dn === fs.length ? t("finished") : ends.length ? t("endsAt", when(Math.max(...ends))) : "—";
+    return `<div class="ringc${block === name ? " sel" : ""}" data-b="${esc(name)}" role="button" tabindex="0" title="${esc(name)}: ${dn}/${fs.length}">
+      ${ring(pct, col, 58, 6, `<text x="29" y="33.5" text-anchor="middle" font-size="12.5" font-weight="650" fill="var(--text)" font-family="Inter,system-ui">${Math.round(pct * 100)}%</text>`)}
+      <div class="n">${esc(name)}</div><div class="c">${dn}/${fs.length} · ${esc(sub)}</div></div>`;
+  }).join(""));
+}
+
+/* ---------- Recent activity ---------- */
+function feedHTML() {
+  const items = [];
+  for (const it of data.iterations) {
+    const f = M.byId.get(it.id), name = f ? short(f) : it.id;
+    if (it.outcome === "pass") items.push({ t: it.end, c: "var(--done)", i: "✓", tx: t("evDone", it.id), s: `${name} · ${dur(it.end - it.start)}` });
+    else if (it.outcome === "fail") items.push({ t: it.end, c: "var(--fail)", i: "!", tx: t("evFail", it.id), s: it.reason || name });
+  }
+  const EVK = { replan: ["var(--fail)", "↻"], sweep: ["var(--accent)", "⟳"], regression: ["var(--blocked)", "!"],
+    start: ["var(--muted)", "▸"], stop: ["var(--muted)", "Ⅱ"], halt: ["var(--blocked)", "■"], done: ["var(--done)", "★"],
+    blocked: ["var(--blocked)", "⊘"] };
+  for (const e of data.events) { const k = EVK[e.kind]; if (k) items.push({ t: e.ts, c: k[0], i: k[1], tx: t("ev")[e.kind], s: e.text }); }
+  items.sort((a, b) => b.t - a.t);
+  return items.slice(0, 6).map(x => `<li><span class="av" style="color:${x.c};background:color-mix(in srgb, ${x.c} 16%, transparent)">${x.i}</span>
+    <span class="tx">${esc(x.tx)}<small>${esc(x.s)}</small></span><span class="ago">${ago(x.t)}</span></li>`).join("") || `<li class="empty">${t("noActivity")}</li>`;
+}
+
+/* ---------- Feature drawer ---------- */
+function md(src) { // just enough for PROGRESS.md: lists, `code` and **bold**
+  const inline = x => esc(x).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  let h = "", inList = false;
+  for (const line of src.split("\n")) {
+    const li = /^\s*[-*] (.*)/.exec(line);
+    if (li) { if (!inList) { h += "<ul>"; inList = true; } h += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList) { h += "</ul>"; inList = false; }
+    const hd = /^#+\s*(.*)/.exec(line);
+    if (hd) h += `<h4>${inline(hd[1])}</h4>`; else if (line.trim()) h += `<p>${inline(line)}</p>`;
+  }
+  return h + (inList ? "</ul>" : "");
+}
+function openFeature(id) {
+  if (!M.byId.has(id)) return;
+  sel = id; renderDrawer(); renderGantt();
+  if (!notes.has(id)) fetch("/api/feature?id=" + encodeURIComponent(id)).then(r => r.json()).then(d => { notes.set(id, d.progress || []); if (sel === id) renderDrawer(); }).catch(() => {});
+}
+function closeFeature() { if (!sel) return; sel = null; renderDrawer(); renderGantt(); }
+function renderDrawer() {
+  const dr = $("drawer"), f = sel && M.byId.get(sel);
+  $("scrim").classList.toggle("on", !!f); dr.classList.toggle("on", !!f);
+  if (!f) return;
+  const s = status(f), list = M.its.get(f.id) || [], p = M.proj.get(f.id), run = M.running && M.running.id === f.id;
+  const time = f.passes ? t("dDone", dur(M.spent(f.id)), list.length)
+    : run ? t("dRunning", when(M.running.start)) : p ? t("dPlanned", when(p.start), when(p.end), dur(p.end - p.start))
+    : M.unreachable.has(f.id) ? t("dNoDate") : "";
+  const chip = x => `<span class="chip" data-open="${esc(x.id)}" title="${esc(short(x))}">${esc(x.id)}</span>`;
+  const deps = (f.depends_on || []).map(d => M.byId.get(d)).filter(Boolean).map(chip).join("") || "—";
+  const used = data.features.filter(x => (x.depends_on || []).includes(f.id)).map(chip).join("");
+  const dotc = { pass: "var(--done)", running: "var(--run)", fail: "var(--fail)" };
+  const att = list.map(it => `<div class="attempt"><span class="dot" style="background:${dotc[it.outcome] || "var(--idle)"}"></span>
+      <span>${t("iteration", esc(t("outcome")[it.outcome] || it.outcome), it.iter)}${it.reason ? `<small>${esc(it.reason)}</small>` : ""}</span>
+      <span style="white-space:nowrap">${when(it.start)} · ${dur((it.end ?? M.now) - it.start)}</span></div>`).join("");
+  const pr = notes.get(f.id);
+  const keep = dr.querySelector(".db")?.scrollTop ?? 0, same = dr.dataset.id === f.id;
+  dr.dataset.id = f.id;
+  setHTML(dr, `<div class="dh"><div style="flex:1;min-width:0">
+      <div class="now-id">${esc(f.id)} · ${esc(blockOf(f))}</div><h3>${esc(short(f))}</h3>
+      <div class="badges"><span class="badge${s === "done" ? "" : s === "todo" ? " muted" : " warn"}">${t("status1")[s]}</span>${time ? `<span class="badge muted">${esc(time)}</span>` : ""}</div></div>
+      <button class="round" id="drawerClose" aria-label="${t("close")}">✕</button></div>
+    <div class="db">
+      <p>${esc(stripBlock(f.description))}</p>
+      ${f.notes ? `<div class="note">${esc(f.notes)}</div>` : ""}
+      ${(f.steps || []).length ? `<h4>${t("steps")}</h4><ol>${f.steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>` : ""}
+      <h4>${t("dependsOn")}</h4><div>${deps}</div>
+      ${used ? `<h4>${t("neededBy")}</h4><div>${used}</div>` : ""}
+      ${att ? `<h4>${t("attempts")}</h4>${att}` : ""}
+      <h4>${t("agentDid")}</h4>${pr == null ? `<div class="empty">${t("loading")}</div>` : pr.length ? pr.map(md).join("") : `<div class="empty">${t("noNotes")}</div>`}
+      <h4>Verify</h4><pre>${esc(f.verify)}</pre>
+    </div>`);
+  if (same) dr.querySelector(".db").scrollTop = keep;
+}
+
+function renderLog() {
+  const src = { loop: data.loop, git: data.git, decisions: data.decisions }[logTab] || [];
+  const box = $("logbox"), atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 4;
+  const txt = src.join("\n") || "—";
+  if (box.textContent === txt) return;
+  box.textContent = txt;
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+
+/* ---------- Theme ---------- */
+const isDark = () => document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && !matchMedia("(prefers-color-scheme: light)").matches);
+function applyThemeIcon() { $("themeBtn").innerHTML = isDark() ? ICONS.sun : ICONS.moon; }
+$("themeBtn").onclick = () => { const nx = isDark() ? "light" : "dark"; document.documentElement.dataset.theme = nx; store.set("theme", nx); applyThemeIcon(); render(); };
+applyThemeIcon();
+
+/* ---------- Language ---------- */
+function applyLang() {
+  document.documentElement.lang = lang; setFormats();
+  document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
+  [["i18nTitle", "title"], ["i18nAria", "aria-label"], ["i18nPh", "placeholder"]].forEach(([k, a]) =>
+    document.querySelectorAll(`[data-${k.replace("i18n", "i18n-").toLowerCase()}]`).forEach(el => el.setAttribute(a, t(el.dataset[k]))));
+  document.querySelectorAll("[data-lang]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  if (!data) { $("brandName").textContent = document.title = t("roadmap"); $("greet").textContent = t("hello"); $("headline").textContent = t("loading"); }
+}
+document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => {
+  lang = b.dataset.lang; try { localStorage.setItem("roadmap:lang", lang); } catch {}
+  const u = new URL(location.href); if (u.searchParams.has("lang")) { u.searchParams.set("lang", lang); history.replaceState(null, "", u); }
+  applyLang(); render(); if (data) $("updated").textContent = t("updated", fmtHMS.format(data.now));
+});
+applyLang();
+
+/* ---------- Data and events ---------- */
+let inflight = false, lastKey = "", lastRender = 0, failed = false;
+async function load() {
+  if (inflight) return;
+  inflight = true;
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    const d = await r.json();
+    // Leave out of the key what changes on its own (agent jsonl mtime, guard heartbeat): otherwise everything redraws every second
+    const u = d.usage || {};
+    const key = JSON.stringify({ ...d, now: 0, usage: { ...u, latest: u.latest && { ...u.latest, mtime: 0 }, guard: u.guard && { ...u.guard, updated: 0 } } });
+    data = d; lastOk = Date.now(); failed = false;
+    // Full redraw only on new data or every 5 min (refreshes estimates); clock-driven bits are moved by tickNow()
+    if (key !== lastKey || lastOk - lastRender > 300e3) { lastKey = key; lastRender = lastOk; render(); }
+    else { tickNow(); renderTop(); }
+    const p = $("pulse"); p.classList.add("on"); requestAnimationFrame(() => requestAnimationFrame(() => p.classList.remove("on")));
+    $("updated").textContent = t("updated", fmtHMS.format(data.now));
+  } catch (e) {
+    failed = true; const st = $("status"); st.className = "status"; st.querySelector(".txt").textContent = t("stOffline");
+    if (lastOk) $("updated").textContent = t("offline", fmtHMS.format(lastOk));
+  } finally { inflight = false; }
+}
+const press = (sel, attr, val) => document.querySelectorAll(sel).forEach(x => x.setAttribute("aria-pressed", String(x.dataset[attr] === val)));
+const bind = (sel, attr, set) => document.querySelectorAll(sel).forEach(b => b.onclick = () => { set(b.dataset[attr]); press(sel, attr, b.dataset[attr]); render(); });
+press("[data-view]", "view", view); press("[data-zoom]", "zoom", zoom); press("[data-log]", "log", logTab);
+$("hideDone").setAttribute("aria-pressed", String(hideDone));
+bind("[data-view]", "view", v => { view = v; store.set("view", v); });
+bind("[data-zoom]", "zoom", v => { zoom = v; store.set("zoom", v); });
+bind("[data-log]", "log", v => { logTab = v; store.set("logTab", v); $("logbox").scrollTop = 1e9; });
+$("hideDone").onclick = e => { hideDone = !hideDone; store.set("hideDone", hideDone); e.currentTarget.setAttribute("aria-pressed", String(hideDone)); render(); };
+$("goNow").onclick = () => scrollToNow();
+const page = dir => { const g = $("ganttBox"); g.scrollBy({ left: dir * (g.clientWidth - (G?.lw || 0)) * 0.5, behavior: "smooth" }); };
+$("prev").onclick = () => page(-1); $("next").onclick = () => page(1);
+$("gq").oninput = render;
+const saveCol = () => store.set("collapsed", [...collapsed]);
+$("toggleAll").onclick = () => { if (collapsed.size) collapsed.clear(); else groupsOf(data?.features || []).forEach((_, k) => collapsed.add(k)); saveCol(); render(); };
+$("ginner").addEventListener("click", e => { const r = e.target.closest(".g-row[data-id]"); if (r) return openFeature(r.dataset.id); const h = e.target.closest(".blockhead"); if (!h) return; const b = h.dataset.block; collapsed.has(b) ? collapsed.delete(b) : collapsed.add(b); saveCol(); render(); });
+$("rings").onclick = e => { const el = e.target.closest(".ringc"); if (!el) return; block = block === el.dataset.b ? null : el.dataset.b; render(); };
+$("rings").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.target.click(); } };
+$("drawer").addEventListener("click", e => { const c = e.target.closest("[data-open]"); if (c) return openFeature(c.dataset.open); if (e.target.closest("#drawerClose")) closeFeature(); });
+$("scrim").onclick = closeFeature;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeFeature(); });
+// Highlight the visible section in the nav
+const io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) document.querySelectorAll(".navlinks a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + en.target.id)); }),
+  { rootMargin: "-30% 0px -60% 0px" });
+["resumen", "gantt", "bloques", "registro"].forEach(id => io.observe($(id)));
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(render, 150); });
+
+load(); setInterval(load, 1000);
+</script>
+</body>
+</html>

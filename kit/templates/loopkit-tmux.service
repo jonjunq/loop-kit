@@ -1,0 +1,18 @@
+# systemd user unit: recreates the loop's tmux session at boot (kit/tmux.sh); the guard then starts the loop if there
+# is work. Install it as the user that owns the project (replace @PROJECT@ with the project's absolute path):
+#   mkdir -p ~/.config/systemd/user
+#   sed "s|@PROJECT@|$HOME/myapp|" loopkit/templates/loopkit-tmux.service > ~/.config/systemd/user/loopkit-myapp.service
+#   systemctl --user daemon-reload && systemctl --user enable loopkit-myapp.service
+#   sudo loginctl enable-linger "$USER"     # so user services start at boot without anyone logging in
+# One unit per project; give each a different TMUX_SESSION. Stopping the unit kills its tmux session (and the loop).
+[Unit]
+Description=loop-kit tmux session for @PROJECT@
+
+[Service]
+Type=forking
+Environment=TMUX_SESSION=loop
+ExecStart=@PROJECT@/loopkit/tmux.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target

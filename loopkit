@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# loopkit: installs the loop-kit harness into a project and checks the machine.
+#   loopkit init [dir]     new or existing project: copies the harness into <dir>/loopkit and prepares the files
+#   loopkit update [dir]   replaces <dir>/loopkit with this version (your project files are not touched)
+#   loopkit doctor [dir]   checks dependencies, git identity and Claude Code
+set -euo pipefail
+SRC=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+VERSION=$(cat "$SRC/VERSION" 2>/dev/null || echo dev)
+
+say()  { printf '%s\n' "$*"; }
+ok()   { printf '  \033[32mok\033[0m   %s\n' "$*"; }
+warn() { printf '  \033[33mwarn\033[0m %s\n' "$*"; }
+bad()  { printf '  \033[31mmiss\033[0m %s\n' "$*"; }
+
+install_kit() { # $1 = project dir
+  rm -rf "$1/loopkit.new"
+  cp -r "$SRC/kit" "$1/loopkit.new"
+  echo "$VERSION" > "$1/loopkit.new/VERSION"
+  rm -rf "$1/loopkit"
+  mv "$1/loopkit.new" "$1/loopkit"
+  chmod +x "$1"/loopkit/*.sh "$1"/loopkit/roadmap/*.py
+}
+
+cmd_init() {
+  local dir=${1:-.} existing=no
+  mkdir -p "$dir"; dir=$(cd "$dir" && pwd)
+  [[ -d "$dir/loopkit" ]] && { say "$dir/loopkit already exists: use 'loopkit update $dir'"; exit 1; }
+  [[ -n "$(find "$dir" -mindepth 1 -maxdepth 1 ! -name .git -print -quit)" ]] && existing=yes
+  install_kit "$dir"
+  [[ -f "$dir/loopkit.env" ]] || cp "$SRC/kit/templates/loopkit.env.example" "$dir/loopkit.env"
+  touch "$dir/.gitignore"
+  for f in logs/ STOP PAUSE loopkit.env .demo/ __pycache__/; do grep -qxF "$f" "$dir/.gitignore" || echo "$f" >> "$dir/.gitignore"; done
+  [[ -d "$dir/.git" ]] || git -C "$dir" init -q
+  say "loop-kit $VERSION installed in $dir/loopkit"
+  [[ $existing == yes ]] && say "The folder already had files: the planner will study the existing code first (adoption mode)."
+  cat <<EOF
+
+Next steps (details in the loop-kit README):
+  1. Review $dir/loopkit.env (model, permissions, budget, notifications).
+  2. Plan, interactively:   cd $dir && claude
+     and tell it:            Read loopkit/prompts/PLAN.md and follow it.
+  3. Launch:                 ./loopkit/tmux.sh && tmux attach -t loop
+                             (the guard starts the loop when there is work; roadmap on http://localhost:8090)
+EOF
+}
+
+cmd_update() {
+  local dir=${1:-.}
+  dir=$(cd "$dir" && pwd)
+  [[ -d "$dir/loopkit" ]] || { say "No loopkit/ in $dir: use 'loopkit init $dir'"; exit 1; }
+  if [[ -f "$dir/logs/.lock" ]] && ! flock -n "$dir/logs/.lock" true 2>/dev/null; then
+    say "The loop is running in $dir. Pause it first (touch PAUSE, wait for logs/paused), update, then rm PAUSE."
+    exit 1
+  fi
+  local old; old=$(cat "$dir/loopkit/VERSION" 2>/dev/null || echo unknown)
+  install_kit "$dir"
+  say "loopkit/ updated in $dir: $old -> $VERSION. Your project files (features.json, SPEC.md, *.env...) were not touched."
+}
+
+cmd_doctor() {
+  local dir=${1:-.} miss=0 c
+  say "loop-kit $VERSION — checking this machine"
+  for c in git jq curl python3 flock timeout tmux; do
+    if command -v "$c" >/dev/null; then ok "$c"; else bad "$c (install it: e.g. apt install $c)"; miss=1; fi
+  done
+  if command -v claude >/dev/null; then ok "claude $(claude --version 2>/dev/null | head -1)"
+  else bad "claude (Claude Code: https://docs.anthropic.com/en/docs/claude-code)"; miss=1; fi
+  if command -v python3 >/dev/null && python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))'; then ok "python3 >= 3.8"
+  else warn "python3 3.8+ is needed for the roadmap and the usage guard"; fi
+  command -v node >/dev/null && ok "node $(node --version)" || warn "node not found (only needed if your stack or your e2e tests use it)"
+  if git var GIT_COMMITTER_IDENT >/dev/null 2>&1; then ok "git identity: $(git var GIT_COMMITTER_IDENT | sed 's/ [0-9]* [-+][0-9]*$//')"
+  else bad "git identity: git config --global user.name 'loop' && git config --global user.email 'loop@localhost'"; miss=1; fi
+  if [[ $EUID -eq 0 ]]; then warn "running as root: use a normal user (see docs/isolation.md)"; fi
+  if [[ -d "$dir/loopkit" ]]; then
+    ok "project $dir: loopkit $(cat "$dir/loopkit/VERSION" 2>/dev/null || echo '?')"
+    [[ -f "$dir/features.json" ]] && ok "features.json ($(jq '.features|length' "$dir/features.json") features)" || warn "no features.json yet: plan first"
+  fi
+  say ""
+  say "Claude Code must be logged in (run 'claude' once and log in, or set ANTHROPIC_API_KEY)."
+  return $miss
+}
+
+case "${1:-help}" in
+  init)   shift; cmd_init "$@" ;;
+  update) shift; cmd_update "$@" ;;
+  doctor) shift; cmd_doctor "$@" ;;
+  version|--version|-v) say "$VERSION" ;;
+  *) sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//' ;;
+esac
