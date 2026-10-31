@@ -30,6 +30,10 @@ MAX_ATTEMPTS="${MAX_ATTEMPTS:-3}"                # failed attempts per feature b
 STALL_LIMIT="${STALL_LIMIT:-6}"                  # iterations without progress before replanning
 MAX_REPLANS="${MAX_REPLANS:-5}"                  # replans in a row without progress before stopping for a human
 REGRESSION_EVERY="${REGRESSION_EVERY:-10}"       # every N new passing features, re-run every verify (0 = never)
+SECURITY_ROUNDS="${SECURITY_ROUNDS:-1}"          # security-review rounds when the work runs out, before the user test (0 = never)
+SECURITY_MODEL="${SECURITY_MODEL:-$QA_MODEL}"    # model of the security reviewers and their triage
+SECURITY_TIMEOUT="${SECURITY_TIMEOUT:-90m}"      # cap per security reviewer
+SECURITY_REVIEWERS="${SECURITY_REVIEWERS:-2}"    # reviewers in parallel: 1 = one session covers everything, 2 = back end / front end and ops
 USERTEST_ROUNDS="${USERTEST_ROUNDS:-2}"          # user-test rounds when the work runs out (0 = never; needs usertest.env)
 USERTEST_MODEL="${USERTEST_MODEL:-$QA_MODEL}"    # model of the testers and the triage
 USERTEST_TIMEOUT="${USERTEST_TIMEOUT:-90m}"      # cap per tester
@@ -187,6 +191,69 @@ regression_sweep() {
   fi
 }
 
+# ---------- Security review ----------
+# When the work runs out, before the user test: read-only reviewers look for exploitable flaws in the code (their
+# changes are discarded) and a triage turns the verified ones into [Security N] features. Rounds are counted like the
+# user test's: "security: round" commits since the last "change:" commit; a round with nothing to fix ends the batch.
+since_batch() { git log --format=%s | awk '/^change:/{exit} {print}'; }  # commit subjects since the last change
+security_pending() {
+  (( SECURITY_ROUNDS > 0 )) || return 1
+  (( $(since_batch | grep -c '^security: round') < SECURITY_ROUNDS )) || return 1
+  ! since_batch | grep -m1 '^security: round' | grep -q 'nothing to fix'
+}
+security_end() { # $1 = round, $2 = summary. Records the round even when nothing changed
+  log "Security review, round $1: $2"; progress "Security review, round $1: $2"
+  git add -A >/dev/null 2>&1; git commit --no-verify -q --allow-empty -m "security: round $1 · $2" >/dev/null 2>&1
+}
+security() {
+  local n dir pre snap=logs/.presecurity.json new reports base done_ids st a name pids=() areas
+  n=$(( $(since_batch | grep -c '^security: round') + 1 ))
+  dir="$PWD/logs/security-$(printf %05d "$i")"; mkdir -p "$dir"
+  log "Security review, round $n/$SECURITY_ROUNDS (reports in ${dir#"$PWD"/})"
+  commit "harness: before security review"; clean_or_die; pre=$(git rev-parse HEAD)
+  if (( SECURITY_REVIEWERS > 1 )); then
+    areas=("backend|server side: authentication, sessions, account recovery, authorization on every route that takes an id, injection, file and upload handling, rate limits, real-time channels, secrets, development/test/demo-only routes and flags, and what the API reveals about other users (including through repeated or crafted requests)"
+           "frontend-ops|client side and operations: XSS and unsafe rendering, tokens or personal data in browser storage or caches, security headers, dependencies, how the app is built and started for anything published (production vs development mode, demo and seed data, default credentials), logs and data at rest, and whether the privacy and retention promises in the SPEC and any privacy text are honoured")
+  else
+    areas=("all|the whole project: every area of a security review")
+  fi
+  base=$(git log --format=%H -E --grep='^(change:|security: round)' -1)
+  done_ids=$(git log --format=%s ${base:+"$base"..HEAD} | sed -n 's/^harness: \(F[0-9.]*\) PASS$/\1/p' | sort -u | tr '\n' ' ')
+  for a in "${areas[@]}"; do
+    name=${a%%|*}; mkdir -p "$dir/$name"
+    ( ITER_TIMEOUT=$SECURITY_TIMEOUT run_agent "security-$name" "$KIT/prompts/SECURITY.md" "$SECURITY_MODEL" "ROUND: $n
+YOUR AREA ($name): ${a#*|}
+THE OTHER REVIEWERS' AREAS: $(printf '%s; ' "${areas[@]%%|*}")
+FEATURES BUILT SINCE THE LAST REVIEW OR CHANGE: ${done_ids:-all}
+YOUR WORKING FOLDER: $dir/$name
+YOUR REPORT: $dir/report-$name.md" >"$dir/$name/status" ) &
+    pids+=($!)
+  done
+  wait "${pids[@]}"
+  git reset -q --hard "$pre"; git clean -fdq
+
+  reports=$(ls "$dir"/report-*.md 2>/dev/null)
+  if [[ -z "$reports" ]]; then
+    notify "Security review: no reviewer delivered a report (${dir#"$PWD"/})"
+    security_end "$n" "nothing to fix (no reports)"; return
+  fi
+
+  # Triage: reports -> [Security N] features and an entry in DECISIONS.md
+  cp "$FEAT" "$snap"
+  st=$(run_agent security-triage "$KIT/prompts/SECURITY_TRIAGE.md" "$SECURITY_MODEL" "ROUND: $n of $SECURITY_ROUNDS
+REPORTS:
+$reports")
+  keep_plan "$pre" "$snap" "Security triage ($st)"
+  new=$(jq --slurpfile old "$snap" '[.features[].id] - [$old[0].features[].id] | join(" ")' -r "$FEAT")
+  if [[ -n "$new" ]]; then
+    security_end "$n" "fix features: $new"
+    notify "Security review, round $n: new fix features $new. Details in DECISIONS.md"
+  else
+    security_end "$n" "nothing to fix"
+    notify "Security review, round $n: nothing to fix now. Low-risk notes and decisions for you are in DECISIONS.md"
+  fi
+}
+
 # ---------- User test ----------
 # When the work runs out, testers with a browser use an isolated copy of the app (usertest.env) and a triage turns
 # their reports into features. Rounds are counted by "usertest: round" commits since the last "change:" commit, so
@@ -197,7 +264,6 @@ ut_stop() {
   ut_pid=""
 }
 trap ut_stop EXIT
-since_batch() { git log --format=%s | awk '/^change:/{exit} {print}'; }  # commit subjects since the last change
 usertest_pending() {
   (( USERTEST_ROUNDS > 0 )) && [[ -f usertest.env ]] || return 1
   (( $(since_batch | grep -c '^usertest: round') < USERTEST_ROUNDS )) || return 1
@@ -311,6 +377,7 @@ for ((i=i0+1; i<=i0+MAX_ITER; i++)); do
   fi
   rem=$(remaining)
   if (( rem == 0 )); then
+    if security_pending; then security; continue; fi
     if usertest_pending; then usertest; continue; fi
     blocked=$(jq '[.features[]|select(.blocked==true)]|length' "$FEAT")
     log "DONE. Passing: $(passing). Blocked: $blocked"

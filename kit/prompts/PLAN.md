@@ -34,6 +34,13 @@ When you can predict my answers to your next three questions, stop and write a s
      - Exit code 0 only if the feature works; never "check that it looks fine".
      - It targets concrete tests of that feature (e.g. `npx playwright test e2e/login.spec.ts`, `pytest tests/test_login.py`), which the worker will write.
    - Logical order with `priority` and `depends_on` (no cycles, only existing ids). Include end-to-end tests of complete flows near the end.
+   - Security by design. A loop builds exactly what the plan says, and projects with green tests have shipped every one of these, so write them into `SPEC.md` (boundaries) and into the features that touch them:
+     - Anything published (the demo, the user-test copy, production) runs in production mode. Development conveniences (mail catchers, test or seed routes, simulators, debug endpoints, verbose errors, relaxed cookies) exist only behind an explicit flag, never because a mode variable was left unset, and are never reachable without a session.
+     - No fixed credentials: seeds take passwords from the environment or generate random ones, printed once and saved to a file with mode 600; none ever ship in the client bundle.
+     - Rate limits work behind a reverse proxy (configurable trusted hops) and also count per account, not only per IP; expensive endpoints (uploads, image processing, search) have limits.
+     - No tokens, reset links, passwords or personal data in logs.
+     - Every retention promise in the SPEC or the privacy text ("stories last 24 h", "no history", "deleting the account deletes everything", "only while visible") gets a feature that purges or stops collecting, with a test.
+     - Features that expose anything derived from sensitive data (location, distances, presence, "last seen") include an anti-probing plan: the server does not trust client-supplied facts it cannot check (e.g. impossible jumps in position), obfuscation uses a server-side secret, and repeated requests do not reveal more than one does.
 4. `init.sh`: idempotent, installs dependencies and leaves the environment ready to work and test (leaving no processes behind).
 5. `.gitignore` for the stack (dependencies, builds, test reports) plus `logs/`, `STOP`, `PAUSE`, `loopkit.env`, `.demo/` and `__pycache__/`.
 6. `PROGRESS.md` and `DECISIONS.md`, empty except for a title.
@@ -45,23 +52,23 @@ When you can predict my answers to your next three questions, stop and write a s
    DEMO_START='node dist/server.js'     # required; in the foreground, reads $PORT; demo data inside the folder (e.g. .demo/)
    DEMO_RESEED='rm -f .demo/demo.db && npm run seed'   # creates the demo data from scratch
    DEMO_RESEED_PATHS='^src/seed/'       # path regex: if a commit touches them, the data is recreated
-   DEMO_LOGIN='demo@example.com / demo1234'   # shown when it starts
+   DEMO_LOGIN='demo@example.com · password in .demo/credentials.txt'   # shown when it starts; never a fixed password
    ```
-   Environment variables it needs (demo database, demo mode) are exported in `demo.env` itself. Plan an early feature that makes the app showable with demo data (seed), so the demo is useful from the start.
+   Environment variables it needs (production mode, demo database, demo mode, an explicit flag for any dev tool the demo needs) are exported in `demo.env` itself. Plan an early feature that makes the app showable with demo data (seed), so the demo is useful from the start.
 8. `usertest.env` (if the app has a UI): read by `loopkit/run.sh` when the features run out, for the automatic user test (testers with a browser, one per zone, on an isolated copy, and a triage that turns their findings into features; see `loopkit/prompts/TESTER.md` and `TRIAGE.md`). The copy runs from the repo itself with its data in `$USERTEST_DATA`. Shell variables:
    ```bash
    USERTEST_PORT=3400                   # different from 8090, DEMO_PORT and the test ports
    USERTEST_HEALTH=/api/health          # path that answers 200 when the copy is ready
    USERTEST_BUILD='npm run build'
    USERTEST_SEED='DB_PATH="$USERTEST_DATA/app.db" npm run seed'     # test data from scratch, never the demo's
-   USERTEST_START='DB_PATH="$USERTEST_DATA/app.db" PORT="$USERTEST_PORT" exec node dist/server.js'   # in the foreground
+   USERTEST_START='NODE_ENV=production DB_PATH="$USERTEST_DATA/app.db" PORT="$USERTEST_PORT" exec node dist/server.js'   # in the foreground, in production mode like the real thing
    USERTEST_INFO='test accounts, dev mailbox, how to fake what headless lacks (GPS, payments…) and how to run Playwright'
    USERTEST_ZONES=(                     # one tester per zone, 3-5 without overlaps: "name|what to test (screens, SPEC sections, designs)"
      "accounts|sign-up, log-in, settings…"
      "core|the main feature…"
    )
    ```
-   If something limits several testers at once (per-IP rate limits, unique accounts), plan for the demo or test mode to relax it.
+   If something limits several testers at once (per-IP rate limits, unique accounts), plan for the demo or test mode to relax it through an explicit setting, not by running in development mode. The same copy is what the automatic security review reasons about: describe in `CLAUDE.md` how the demo and the user-test copy are started.
 
 ## Phase 3 — Visual design (if the product has a UI)
 Visual work comes out better designed up front than improvised feature by feature. If you have tools to design visually (for example the Artifact tool with Claude Design's Design System and Design types):

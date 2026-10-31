@@ -83,6 +83,8 @@ def timeline(running):
                 close(ts, "qa_inconclusive", text); continue
         for pat, kind in ((r"^(Start|Arranque)\b", "start"), (r"^STOP (found|encontrado)", "stop"), (r"^Replan ", "replan"),
                           (r"^(Regression sweep|Barrido de regresiones)", "sweep"), (r"^(Regressions|Regresiones):", "regression"),
+                          (r"^(Security review|Revisión de seguridad), (round|ronda) \d+/", "security"),
+                          (r"^(User test|Prueba de usuario), (round|ronda) \d+/", "usertest"),
                           (r"^(DONE|TERMINADO)", "done"), (r"^(HALTED|PARADO|BUDGET)", "halt"),
                           (r"(blocked by the harness|bloqueada por el arnés)", "blocked")):
             if re.search(pat, text):

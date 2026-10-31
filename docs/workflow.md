@@ -14,6 +14,13 @@
     Try a few by hand: they must fail now and must not hang.
   - The project languages (UI, docs, code) are written down in `SPEC.md`/`CLAUDE.md`.
 - Whatever you leave undefined, the agents will decide for you. That is fine for details, not for the product.
+- Security is planned, not tested in at the end. The planner writes these rules into the SPEC and the features,
+  because a real project shipped all of them with every test green: published copies (demo, user-test copy) run in
+  production mode; development tools (mail catchers, test routes, simulators) only behind an explicit flag and a
+  login; no fixed seed passwords; rate limits that work behind your reverse proxy and per account; no tokens or
+  personal data in logs; a purge feature for every retention promise in the privacy text; and an anti-probing plan
+  for anything derived from location or other sensitive data. Check that your plan has them. The automatic security
+  review at the end of each batch catches what slips through, but it is cheaper not to build it.
 
 ## 2. Design first (if there is a UI)
 
@@ -51,7 +58,16 @@ If the planner wrote `demo.env`, `./loopkit/demo.sh` keeps `<project>-demo` on t
 `http://<host>:3000`. Good for showing progress to others: it never shows half-done work. If a change touches the
 seed data, the demo data is recreated (tell your testers).
 
-## 6. User test
+## 6. Security review
+
+When the features run out, before the user test, read-only reviewers look at the project as attackers would and a
+triage turns the confirmed findings into `[Security N]` features that go first (see
+[how it works](how-it-works.md#the-security-review)). Read the "Security review" entries in `DECISIONS.md`: some
+findings need your decision (a real mail provider, what the privacy text promises, what goes behind a login). It
+reviews the code, not a running deployment: before opening the project to the public, also test the deployed copy
+from outside with a dedicated tool.
+
+## 7. User test
 
 With `usertest.env`, the harness runs an automatic user test when the features run out (see
 [how it works](how-it-works.md#the-user-test)), turns real bugs into features and keeps going. Read the
@@ -60,7 +76,7 @@ With `usertest.env`, the harness runs an automatic user test when the features r
 To run it with you present (to decide what gets fixed, or redesign something), stop or pause the loop and tell
 `claude`: `Read loopkit/prompts/USERTEST.md and follow it.`
 
-## 7. Adopting an existing project
+## 8. Adopting an existing project
 
 `loopkit init` on a folder with code, then plan as usual. The planner first studies the code (structure, stack, how
 to build and test it, what works, what is half done), asks only what the code cannot tell, and plans only the

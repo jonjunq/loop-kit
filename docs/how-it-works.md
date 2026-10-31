@@ -58,11 +58,35 @@
 - `touch PAUSE`: the current iteration finishes, `logs/paused` appears and the harness waits. `rm PAUSE` and it
   re-executes itself, so it picks up new versions of `run.sh`, the prompts and `features.json`, keeping its
   environment. `prompts/CHANGE.md` uses this so a change never needs a manual relaunch.
-- A change ends with a `change: …` commit. That marks a new "batch" for the user test.
+- A change ends with a `change: …` commit. That marks a new "batch" for the security review and the user test.
+
+## The security review
+
+Every feature passed its tests and a QA session, but nobody looked at the project as an attacker would. When no
+feature is left, before the user test, the harness:
+
+1. starts read-only reviewers in parallel (`prompts/SECURITY.md`; `SECURITY_REVIEWERS=2`: back end, and front end
+   plus operations; `1` = one session for everything). They read the SPEC, the privacy promises and how the app is
+   built and started, map the entry points and hunt for flaws that cross a real trust boundary, with the classes
+   that slipped through in real projects first: development tools live in what gets published, fixed seed
+   credentials, leaks through repeated or crafted requests, obfuscation without a secret, rate limits that do not
+   work behind a proxy, secrets in logs, privacy promises without a purge. Each writes a report with `file:line`,
+   attack steps and a fix to `logs/security-<iter>/`;
+2. runs a triage (`prompts/SECURITY_TRIAGE.md`) that tries to refute every serious finding in the code, and turns
+   the confirmed ones into `[Security N]` features whose verify reproduces the attack, ahead of anything pending,
+   plus a full-regression feature. Low-risk notes and decisions that need you (a mail provider, a change to the
+   privacy text) go to `DECISIONS.md`;
+3. throws away any code change from reviewers or triage, validates the plan, commits `security: round N · …` and
+   keeps looping.
+
+Up to `SECURITY_ROUNDS` rounds per batch (default 1, counted since the last `change:` commit like the user test's);
+a round with nothing to fix closes it. It reads code only: it does not attack a running app. For a test from
+outside against a deployed copy, use a dedicated tool once the project is about to go public.
 
 ## The user test
 
-When no feature is left and `usertest.env` exists, before declaring the project done the harness:
+When no feature is left (and the security review is done) and `usertest.env` exists, before declaring the project
+done the harness:
 
 1. builds the app and seeds a **separate** database in `logs/usertest-<iter>/data`, and starts it on `USERTEST_PORT`;
 2. launches one tester per zone in parallel (`prompts/TESTER.md`): real browser (Playwright), phone and desktop

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Automatic security review when the features run out, before the user test: read-only reviewers in parallel
+  (`prompts/SECURITY.md`) look for exploitable flaws, a triage (`prompts/SECURITY_TRIAGE.md`) refutes what it can and
+  turns the rest into `[Security N]` features ahead of pending work. Settings `SECURITY_ROUNDS` (default 1),
+  `SECURITY_MODEL`, `SECURITY_REVIEWERS`, `SECURITY_TIMEOUT`; reports in `logs/security-NNNNN/`; commits
+  `security: round N · …`. The roadmap shows security reviews and user tests in the activity feed and the Gantt.
+- Planning rules against the security bugs a real project shipped with green tests: published copies run in
+  production mode, no fixed seed credentials, development tools only behind an explicit flag, proxy-aware and
+  per-account rate limits, no secrets in logs, a purge feature for every retention promise, an anti-probing plan for
+  location and other sensitive data.
+
 ## 1.0.0 — first public release
 
 - Harness (`run.sh`): harness-owned state, verify run by the harness, independent QA with discarded changes,

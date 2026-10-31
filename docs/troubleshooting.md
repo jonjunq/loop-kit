@@ -50,6 +50,11 @@ prefix and ids starting with `F`.
 **The demo stays on an old version**
 Look at `<project>-demo/.demo/update.log`: a failing build keeps the previous version on purpose.
 
+**The security review created features I disagree with**
+The triage records why in `DECISIONS.md` ("Security review · round N"). Mark the feature `blocked` with a note
+through `prompts/CHANGE.md`, or change the SPEC if the behaviour is intended; the next round reads `DECISIONS.md`.
+To skip the review for a batch, `SECURITY_ROUNDS=0` in `loopkit.env`.
+
 **The user test was skipped**
 `usertest.env` needs `USERTEST_START` and `USERTEST_ZONES`; the copy must build, seed and answer on
 `USERTEST_HEALTH` within two minutes. Details in `logs/usertest-*/`. Rounds are counted since the last `change:`

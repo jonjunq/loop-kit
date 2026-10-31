@@ -48,6 +48,7 @@ Features get bigger and slower as the project grows (more tests to run). The roa
 | Worker (`MODEL`) | Your best coding model. A weaker worker fails more and each failure costs a full retry |
 | QA (`QA_MODEL`) | Same as the worker if you can. `sonnet` is a reasonable saving; a weak QA lets cheating through |
 | Replanner (`REPLAN_MODEL`) | Same as the worker; it runs rarely |
+| Security reviewers and triage (`SECURITY_MODEL`) | Defaults to `QA_MODEL`. Worth your best model: a weak reviewer reports noise and misses the subtle leaks |
 | Testers and triage (`USERTEST_MODEL`) | Defaults to `QA_MODEL` |
 
 Do not switch models in the middle of a project without reason: the ETA and the failure rate are calibrated on what
@@ -60,4 +61,6 @@ ran before.
 - Fast, targeted `verify` commands; save the full suite for a few regression features.
 - `REGRESSION_EVERY=20` or `0` if your verifies are slow and you trust the QA's full-suite run.
 - `USERTEST_ROUNDS=1` or `0`.
+- `SECURITY_REVIEWERS=1`. A security round costs about as much as 2-3 iterations (two reviewers and a triage), once
+  per batch; switching it off (`SECURITY_ROUNDS=0`) is a false economy for anything other people will use.
 - A cheaper `QA_MODEL`.

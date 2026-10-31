@@ -27,6 +27,10 @@ the environment, but a fresh shell does not.
 | `MAX_REPLANS` | `5` | Replans in a row without progress before halting |
 | `REGRESSION_EVERY` | `10` | Re-run every passing verify after N new passes (`0` = never) |
 | `MAX_ITER` | `10000` | Iterations per launch |
+| `SECURITY_ROUNDS` | `1` | Security-review rounds per batch when the features run out, before the user test (`0` = never) |
+| `SECURITY_MODEL` | `QA_MODEL` | Security reviewers and triage model |
+| `SECURITY_REVIEWERS` | `2` | Reviewers in parallel: `2` = back end / front end and operations, `1` = one session for everything |
+| `SECURITY_TIMEOUT` | `90m` | Cap per reviewer |
 | `USERTEST_ROUNDS` | `2` | User-test rounds per batch when the features run out (`0` = never) |
 | `USERTEST_MODEL` | `QA_MODEL` | Testers and triage model |
 | `USERTEST_TIMEOUT` | `90m` | Cap per tester |
@@ -106,7 +110,7 @@ deterministic, under `VERIFY_TIMEOUT`, and exit 0 only when the feature works.
 ## Files the harness creates
 
 `logs/loop.log` (timeline), `logs/notify.log` (notifications), `logs/iter-NNNNN-<role>.jsonl|.err` (full transcript of
-each agent session), `logs/verify-<id>.log`, `logs/qa-verdict.txt`, `logs/usertest-NNNNN/` (copy data, server log,
+each agent session), `logs/verify-<id>.log`, `logs/qa-verdict.txt`, `logs/security-NNNNN/` (reviewers' reports), `logs/usertest-NNNNN/` (copy data, server log,
 reports), `logs/guard.json`, `logs/.lock`, `logs/done` (commit of the last DONE), `logs/halted` (why it stopped
-needing a human; delete it to let the guard start the loop again). Commit messages: `harness: …`, `replan: …`, `usertest: round …`, plus the
+needing a human; delete it to let the guard start the loop again). Commit messages: `harness: …`, `replan: …`, `security: round …`, `usertest: round …`, plus the
 workers' `Fxxx: …` and your `change: …`.

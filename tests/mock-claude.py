@@ -77,7 +77,26 @@ if role.startswith("tester-"):
     open(report, "w").write(f"# Report {zone}\ncopy reachable: {ok}\n" + ("BUG: the button does nothing\n" if act == "bug" else "no bugs\n"))
     result(); sys.exit(0)
 
+if role.startswith("security-") and role != "security-triage":
+    area = role[len("security-"):]
+    report = after("YOUR REPORT: ").strip().splitlines()[0]
+    act = pop(f"security-{area}", "clean")
+    sh("echo 'reviewer was here' >> src.txt && touch reviewer-untracked.txt")
+    open(report, "w").write(f"# Security {area}\n" + ("FINDING: anyone can read the dev mailbox\n" if act == "finding" else "nothing exploitable\n"))
+    result(); sys.exit(0)
+
 d = json.load(open("features.json"))
+if role == "security-triage":
+    reports = after("REPORTS:\n").split()
+    found = sum("FINDING:" in open(r).read() for r in reports)
+    if found:
+        n = max(int(f["id"][1:4]) for f in d["features"] if f["id"][1:4].isdigit()) + 1
+        fid = f"F{n:03d}"
+        d["features"].append({"id": fid, "priority": 999, "depends_on": [], "description": "[Security 1] Close the dev mailbox",
+                              "steps": [], "verify": f"test -f done/{fid}", "passes": False, "attempts": 0, "blocked": False, "notes": ""})
+    json.dump(d, open("features.json", "w"), indent=1)
+    sh(f"echo '- security triage: {found} findings' >> DECISIONS.md && echo 'security triage touched code' >> src.txt")
+    result(); sys.exit(0)
 if role == "triage":
     reports = after("REPORTS:\n").split()
     bugs = sum("BUG:" in open(r).read() for r in reports)

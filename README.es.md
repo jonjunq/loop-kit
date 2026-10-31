@@ -20,7 +20,9 @@ flowchart LR
   D --> H
   H -- atascado --> R[Replanner<br/>divide / reordena]
   R --> H
-  H -- no queda nada --> U[Prueba de usuario<br/>probadores con navegador + triaje]
+  H -- no queda nada --> S[Revisión de seguridad<br/>revisores de solo lectura + triaje]
+  S -- hallazgos --> H
+  S -- limpio --> U[Prueba de usuario<br/>probadores con navegador + triaje]
   U -- fallos --> H
   U -- limpio --> E[Terminado: aviso]
 ```
@@ -38,6 +40,9 @@ optimista, así que este arnés nunca le deja llevar la cuenta:
 - **No da vueltas en vacío.** Los intentos fallidos, los atascos y las dependencias imposibles activan un replanner
   que solo puede tocar el plan; si los replanes no avanzan, bloquea la feature o para el bucle y te avisa. Cada 10
   features se vuelven a ejecutar todos los verify anteriores para cazar regresiones.
+- **Revisa el conjunto, no solo cada pieza.** Al acabarse las features, unos revisores de seguridad de solo lectura
+  miran el proyecto como lo haría un atacante y unos probadores lo usan como gente real; un triaje convierte lo que
+  es real en features nuevas.
 - **Está hecho para días, no minutos**: pausa y reanudación limpias para tus cambios, vigilante de la ventana de uso,
   tope de gasto, avisos, un roadmap con hora de fin que aprende del ritmo real del proyecto y una demo que siempre
   enseña la última feature que pasó.
@@ -114,6 +119,7 @@ roadmap se muestra en castellano si tu navegador lo está (o con `?lang=es`).
 | Guardarte parte de tu cuota | el vigilante para el bucle al 80 % de la ventana de 5 h y lo vuelve a arrancar al renovarse |
 | No relanzar nunca a mano | el vigilante con `AUTO_RESUME=1` arranca el bucle siempre que hay trabajo: features pendientes o un commit nuevo después de terminar (un cambio). Si se cae 3 veces nada más arrancar, deja de intentarlo hasta el siguiente commit y te avisa |
 | Poner un tope de gasto | `BUDGET_USD` en `loopkit.env` |
+| Revisar su seguridad | automático al acabarse las features, antes de la prueba de usuario (`SECURITY_ROUNDS`, activado por defecto) |
 | Probarla como un usuario | automático al acabarse las features (necesita `usertest.env`); a mano con `prompts/USERTEST.md` |
 | Actualizar el kit | `~/loop-kit/loopkit update ~/miapp` (pausa antes el bucle) |
 | Retomar tras un corte o reinicio | con el vigilante en marcha se reanuda solo (con la unidad de systemd, también tras reiniciar); si no, `./loopkit/run.sh` sigue desde el estado en disco |
@@ -121,7 +127,7 @@ roadmap se muestra en castellano si tu navegador lo está (o con `?lang=es`).
 
 ## Documentación (en inglés)
 
-- [Cómo funciona](docs/how-it-works.md): papeles, ficheros, redes de seguridad, la prueba de usuario.
+- [Cómo funciona](docs/how-it-works.md): papeles, ficheros, redes de seguridad, la revisión de seguridad y la prueba de usuario.
 - [Configuración](docs/configuration.md): todos los ajustes y ficheros.
 - [Planes y costes](docs/plans-and-costs.md): suscripción o API, vigilante de uso, tope de gasto, qué modelos usar.
 - [Aislamiento y seguridad](docs/isolation.md): dónde ejecutarlo y cómo cerrarlo.
@@ -139,5 +145,7 @@ roadmap se muestra en castellano si tu navegador lo está (o con `?lang=es`).
   [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT).
 - "Recorre cada botón hasta el final" de los probadores: adaptado de `click-path-audit` de
   [everything-claude-code](https://github.com/affaan-m/everything-claude-code) (MIT).
+- Revisión de seguridad: "un hallazgo cruza una frontera de confianza real" y "el triaje intenta refutar cada
+  hallazgo" siguen a [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) (MIT).
 
 Sin relación con Anthropic. Licencia MIT, ver [LICENSE](LICENSE).

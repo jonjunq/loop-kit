@@ -20,7 +20,9 @@ flowchart LR
   D --> H
   H -- stuck --> R[Replanner<br/>splits / reorders]
   R --> H
-  H -- nothing left --> U[User test<br/>testers with a browser + triage]
+  H -- nothing left --> S[Security review<br/>read-only reviewers + triage]
+  S -- findings --> H
+  S -- clean --> U[User test<br/>testers with a browser + triage]
   U -- bugs --> H
   U -- clean --> E[Done: notification]
 ```
@@ -38,6 +40,8 @@ this harness never trusts them with the score:
 - **It does not spin.** Failed attempts, stalls and dependency deadlocks trigger a replanner that may only touch the
   plan; replans that make no progress block the feature or stop the loop and call you. Every 10 features all
   previous verifies are re-run to catch regressions.
+- **It checks the whole, not just each piece.** When the features run out, read-only security reviewers look at the
+  project as attackers would and testers use it like real people; a triage turns what is real into new features.
 - **It is built for days, not minutes**: clean pause/resume for your changes, usage-window guard, budget cap,
   notifications, a roadmap with an ETA that learns from the project's real pace, and a demo that always shows the
   latest passing feature.
@@ -108,13 +112,14 @@ no code yet) and must not hang.
 | Keep part of your quota | the guard stops the loop at 80 % of the 5-hour window and starts it again when it renews |
 | Never relaunch by hand | the guard with `AUTO_RESUME=1` starts the loop whenever there is work: pending features, or a new commit after it finished (a change). If it dies 3 times right after starting, it stops trying until the next commit and tells you |
 | Cap the spend | `BUDGET_USD` in `loopkit.env` |
+| Review its security | automatic when the features run out, before the user test (`SECURITY_ROUNDS`, on by default) |
 | Test it like a user | automatic when the features run out (needs `usertest.env`); by hand with `prompts/USERTEST.md` |
 | Update the kit | `~/loop-kit/loopkit update ~/myapp` (pause the loop first) |
 | Resume after a crash or reboot | with the guard running it resumes by itself (with the systemd unit, after a reboot too); otherwise `./loopkit/run.sh` continues from the state on disk |
 
 ## Documentation
 
-- [How it works](docs/how-it-works.md): roles, files, safety nets, the user test.
+- [How it works](docs/how-it-works.md): roles, files, safety nets, the security review and the user test.
 - [Configuration](docs/configuration.md): every setting and every file.
 - [Plans and costs](docs/plans-and-costs.md): subscriptions vs API, the usage guard, the budget cap, choosing models.
 - [Isolation and security](docs/isolation.md): where to run it and how to lock it down.
@@ -128,7 +133,7 @@ no code yet) and must not hang.
 loopkit                 CLI: init / update / doctor
 kit/                    what gets installed into <project>/loopkit/
   run.sh                the harness
-  prompts/              PLAN, WORKER, QA, REPLAN, CHANGE, TESTER, TRIAGE, USERTEST
+  prompts/              PLAN, WORKER, QA, REPLAN, CHANGE, SECURITY, SECURITY_TRIAGE, TESTER, TRIAGE, USERTEST
   roadmap/  roadmap.sh  live roadmap (stdlib Python + one HTML file)
   guard.sh              usage guard (subscription plans) and auto-start
   tmux.sh               creates the tmux session (loop, roadmap, guard, demo); templates/ has a systemd unit for boot
@@ -150,5 +155,7 @@ tests/                  end-to-end tests of the harness with a fake Claude
   [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT).
 - "Follow every button to the end" in the tester prompts: adapted from `click-path-audit` in
   [everything-claude-code](https://github.com/affaan-m/everything-claude-code) (MIT).
+- Security review: "a finding crosses a real trust boundary" and "the triage tries to refute each finding" follow
+  [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) (MIT).
 
 Not affiliated with Anthropic. MIT licensed, see [LICENSE](LICENSE).

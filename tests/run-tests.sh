@@ -136,6 +136,36 @@ check "round 2 found nothing and closed the batch" git -C "$P" log --format=%s -
 check "tester/triage code changes discarded" bash -c "! grep -qE 'tester was here|triage touched code' '$P/src.txt'"
 check "the copy was shut down" bash -c "! curl -sf -o /dev/null http://127.0.0.1:$PORT/"
 
+echo "automatic security review"
+P=$(project security "$(feature F001 '[]' 1)")
+PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); print(s.getsockname()[1])')
+cat > "$P/usertest.env" <<EOF
+USERTEST_PORT=$PORT
+USERTEST_START='exec python3 -m http.server "\$USERTEST_PORT" --bind 127.0.0.1'
+USERTEST_ZONES=("alpha|the alpha zone")
+EOF
+git -C "$P" add -A && git -C "$P" commit -qm "change: usertest config"
+printf 'finding\n' > "$P/mock/security-backend"
+run "$P"
+check "two reviewers wrote their reports" bash -c "ls '$P'/logs/security-*/report-backend.md '$P'/logs/security-*/report-frontend-ops.md"
+check "round 1 turned the finding into a fix feature" git -C "$P" log --format=%s --grep='^security: round 1 · fix features: F002'
+check "the loop built the security fix" test "$(passes "$P" F002)" = true
+check "the security round ran before the user test" bash -c "git -C '$P' log --reverse --format=%s | grep -m1 -E '^(security|usertest): round' | grep -q '^security'"
+check "only one security round per batch" test "$(git -C "$P" log --format=%s | grep -c '^security: round')" = 1
+check "reviewer and triage code changes discarded" bash -c "! grep -qE 'reviewer was here|security triage touched code' '$P/src.txt' && ! test -e '$P/reviewer-untracked.txt'"
+check "triage decisions kept" grep -q 'security triage: 1 findings' "$P/DECISIONS.md"
+order() { grep -oE 'Security review, round 1:|User test, round 1:|DONE' "$P/logs/loop.log" | cut -c1-4 | tr '\n' ' '; }
+check "DONE only after the security review and the user test" test "$(order)" = "Secu User DONE "
+check "...and logs/done is the final commit" test "$(cat "$P/logs/done")" = "$(git -C "$P" rev-parse HEAD)"
+jq --argjson f "$(feature F009 '[]' 9)" '.features += [$f]' "$P/features.json" > "$TMP/f.json" && mv "$TMP/f.json" "$P/features.json"
+git -C "$P" commit -qam "change: add F009"
+run "$P"
+check "a change: commit gets a new security round" test "$(git -C "$P" log --format=%s | grep -c '^security: round')" = 2
+check "...which found nothing this time" bash -c "git -C '$P' log --format=%s | grep -m1 '^security: round' | grep -q 'nothing to fix'"
+P=$(project nosecurity "$(feature F001 '[]' 1)")
+run "$P" SECURITY_ROUNDS=0
+check "SECURITY_ROUNDS=0 skips the review" bash -c "grep -q DONE '$P/logs/loop.log' && ! git -C '$P' log --format=%s | grep -q '^security: round' && ! ls -d '$P'/logs/security-* 2>/dev/null"
+
 echo "demo"
 P=$(project demo "$(feature F001 '[]' 1)" "$(feature F002 '[]' 2)")
 DPORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); print(s.getsockname()[1])')
@@ -159,7 +189,8 @@ sleep 4; check "keeps the previous version when the build fails" get v1
 data1=$(cat "$TMP/demo-demo/.demo/data")
 (cd "$P" && rm broken && echo v3 > version.txt && echo s2 > seed/s && git add -A && git commit -qm F003 && git commit -q --allow-empty -m "harness: F003 PASS")
 check "updates to the next passing commit" get v3
-check "recreates demo data when the seed changes" test "$(cat "$TMP/demo-demo/.demo/data")" != "$data1"
+reseeded() { for _ in $(seq 40); do [[ "$(cat "$TMP/demo-demo/.demo/data" 2>/dev/null)" != "$data1" ]] && return 0; sleep 0.25; done; return 1; }
+check "recreates demo data when the seed changes" reseeded
 kill $demo; wait $demo 2>/dev/null
 check "stops its server" bash -c "! curl -sf -o /dev/null http://127.0.0.1:$DPORT/"
 
@@ -170,6 +201,7 @@ waitfor() { local n=$1; shift; for _ in $(seq $((n * 4))); do "$@" >/dev/null 2>
 starts() { grep -c '] Start' "$P/logs/loop.log" 2>/dev/null; }
 built() { test "$(passes "$P" "$1")" = true; }   # evaluated on every poll, unlike an inline $(...)
 done_at_head() { test "$(cat "$P/logs/done" 2>/dev/null)" = "$(git -C "$P" rev-parse HEAD)"; }
+finished() { built "$1" && done_at_head; }   # built and the run is over (the end-of-batch reviews included)
 guard() { (cd "$P" && AUTO_RESUME=1 GUARD_INTERVAL=1 TMUX_SOCKET="$TS" exec python3 loopkit/roadmap/guard.py >> "$TMP/guard.out" 2>&1) & gpid=$!; }
 add_feature() { # $1 = id: commits a change that adds a pending feature
   jq --argjson f "$(feature "$1" '[]' 9)" '.features += [$f]' "$P/features.json" > "$TMP/f.json" && mv "$TMP/f.json" "$P/features.json"
@@ -180,26 +212,26 @@ check "starts a loop that never finished" waitfor 60 built F001
 check "...and the loop writes logs/done" waitfor 20 done_at_head
 sleep 4; check "no start while finished and nothing new" test "$(starts)" = 1
 add_feature F002
-check "a new commit starts it again" waitfor 60 built F002
+check "a new commit starts it again" waitfor 60 finished F002
 touch "$P/STOP"; add_feature F003; sleep 4
 check "STOP keeps it stopped" test "$(starts)" = 2
 rm "$P/STOP"
-check "rm STOP starts it" waitfor 60 built F003
+check "rm STOP starts it" waitfor 60 finished F003
 echo "needs a human" > "$P/logs/halted"; add_feature F004; sleep 4
 check "logs/halted keeps it stopped" test "$(starts)" = 3
 rm "$P/logs/halted"
-check "removing logs/halted starts it" waitfor 60 built F004
+check "removing logs/halted starts it" waitfor 60 finished F004
 echo '{' > "$P/features.json"; git -C "$P" commit -qam "broken plan"
 check "gives up after 3 starts that die at once" waitfor 60 grep -q 'dies right after starting' "$P/logs/notify.log"
 check "...and waits for the next commit" test "$(git -C "$P" log -1 --format=%H)" = "$(jq -r .gave_up "$P/logs/guard.json")"
 git -C "$P" checkout -q HEAD~1 -- features.json; add_feature F005
-check "a fixing commit makes it start again" waitfor 60 built F005
+check "a fixing commit makes it start again" waitfor 60 finished F005
 kill $gpid; wait $gpid 2>/dev/null
 touch "$P/STOP"; add_feature F006
 python3 -c "import json,time; json.dump({'state':'stopping','reset_at':int(time.time()*1000)-120000}, open('$P/logs/guard.json','w'))"
 guard
 check "after a usage stop, the guard removes its STOP" waitfor 20 test ! -e "$P/STOP"
-check "...and starts the loop when the window has renewed" waitfor 60 built F006
+check "...and starts the loop when the window has renewed" waitfor 60 finished F006
 check "...saying so" grep -q 'usage renewed: relaunching' "$P/logs/notify.log"
 kill $gpid; wait $gpid 2>/dev/null
 check "tmux.sh creates the session with loop, roadmap and guard windows" bash -c "cd '$P' && TMUX_SOCKET='$TS' TMUX_SESSION=boot ROADMAP_PORT=0 ./loopkit/tmux.sh && test \"\$(tmux -L '$TS' list-windows -t boot -F '#{window_name}' | tr '\n' ' ')\" = 'loop roadmap guard '"

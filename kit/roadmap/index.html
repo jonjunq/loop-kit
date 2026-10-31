@@ -336,7 +336,7 @@
         <span><span class="sw" style="background:var(--idle)"></span><span data-i18n="lgInt">Interrupted</span></span>
         <span><span class="sw" style="background:var(--glass-2);border:1px solid var(--stroke-2)"></span><span data-i18n="lgEst">Estimate</span></span>
         <span><span class="sw" style="background:var(--nowline);width:3px"></span><span data-i18n="now">Now</span></span>
-        <span><span class="sw" style="border-left:1px dashed var(--fail);width:3px;border-radius:0"></span><span data-i18n="lgEv">Replan, sweep or restart</span></span>
+        <span><span class="sw" style="border-left:1px dashed var(--fail);width:3px;border-radius:0"></span><span data-i18n="lgEv">Replan, sweep, review or restart</span></span>
       </div>
     </div>
 
@@ -376,7 +376,7 @@ const I18N = {
     searchPh: "Search features…", searchAria: "Search features in the Gantt", view: "View", features: "Features", zoom: "Zoom",
     z6h: "6 h", z1d: "1 day", z3d: "3 days", z1w: "Week", z1m: "Month", zAll: "All",
     hideDone: "Hide done", collapseAll: "Collapse all", expandAll: "Expand all", navigate: "Navigate", back: "Back", forward: "Forward", now: "Now", nowTag: "NOW",
-    lgDone: "Done · worker, verify and QA", lgFail: "Failed attempt", lgRun: "In progress", lgInt: "Interrupted", lgEst: "Estimate", lgEv: "Replan, sweep or restart",
+    lgDone: "Done · worker, verify and QA", lgFail: "Failed attempt", lgRun: "In progress", lgInt: "Interrupted", lgEst: "Estimate", lgEv: "Replan, sweep, review or restart",
     blocksSub: "Progress and expected finish of each block · click one to filter the Gantt",
     logSub: "What the loop and the agents write, verbatim", logLoop: "Loop", logGit: "Commits", logDec: "Decisions", drawer: "Feature details",
     other: "Other", min: "min", h: "h", d: "d", pct: "{0}%",
@@ -411,7 +411,7 @@ const I18N = {
     soon: "The current feature will show up in a few seconds.", whenRelaunched: "Once it restarts, you'll see the current feature, its phases and timing here.",
     recent: "Recent activity", finished: "finished", endsAt: "ends {0}",
     evDone: "{0} done", evFail: "{0} failed",
-    ev: { replan: "Replan", sweep: "Regression sweep", regression: "Regressions", start: "Loop started", stop: "Loop stopped", halt: "Loop halted", done: "Project finished", blocked: "Feature blocked" },
+    ev: { replan: "Replan", sweep: "Regression sweep", regression: "Regressions", start: "Loop started", stop: "Loop stopped", halt: "Loop halted", done: "Project finished", blocked: "Feature blocked", security: "Security review", usertest: "User test" },
     noActivity: "No activity yet.",
     dDone: (d, n) => `Done in ${d}${n > 1 ? ` · ${n} attempts` : ""}`, dRunning: "In progress since {0}", dPlanned: "Expected {0} → {1} (~{2})", dNoDate: "No date: depends on something blocked",
     iteration: "{0} · iteration {1}", close: "Close", steps: "Steps", dependsOn: "Depends on", neededBy: "Needed by", attempts: "Attempts",
@@ -424,7 +424,7 @@ const I18N = {
     searchPh: "Buscar features…", searchAria: "Buscar features en el Gantt", view: "Vista", features: "Features", zoom: "Zoom",
     z6h: "6 h", z1d: "1 día", z3d: "3 días", z1w: "Semana", z1m: "Mes", zAll: "Todo",
     hideDone: "Ocultar hechas", collapseAll: "Plegar todo", expandAll: "Desplegar todo", navigate: "Navegar", back: "Atrás", forward: "Adelante", now: "Ahora", nowTag: "AHORA",
-    lgDone: "Hecha · worker, verify y QA", lgFail: "Intento fallido", lgRun: "En curso", lgInt: "Interrumpida", lgEst: "Estimación", lgEv: "Replan, barrido o reinicio",
+    lgDone: "Hecha · worker, verify y QA", lgFail: "Intento fallido", lgRun: "En curso", lgInt: "Interrumpida", lgEst: "Estimación", lgEv: "Replan, barrido, revisión o reinicio",
     blocksSub: "Avance y fin previsto de cada bloque · pulsa uno para filtrar el Gantt",
     logSub: "Lo que escriben el bucle y los agentes, tal cual", logLoop: "Bucle", logGit: "Commits", logDec: "Decisiones", drawer: "Ficha de la feature",
     other: "Otros", min: "min", h: "h", d: "d", pct: "{0} %",
@@ -459,7 +459,7 @@ const I18N = {
     soon: "En unos segundos aparecerá la feature en curso.", whenRelaunched: "Cuando se relance, aquí verás la feature en curso, sus fases y el tiempo.",
     recent: "Actividad reciente", finished: "terminado", endsAt: "fin {0}",
     evDone: "{0} completada", evFail: "{0} falló",
-    ev: { replan: "Replanificación", sweep: "Barrido de regresiones", regression: "Regresiones", start: "Bucle arrancado", stop: "Bucle parado", halt: "Bucle detenido", done: "Proyecto terminado", blocked: "Feature bloqueada" },
+    ev: { replan: "Replanificación", sweep: "Barrido de regresiones", regression: "Regresiones", start: "Bucle arrancado", stop: "Bucle parado", halt: "Bucle detenido", done: "Proyecto terminado", blocked: "Feature bloqueada", security: "Revisión de seguridad", usertest: "Prueba de usuario" },
     noActivity: "Sin actividad todavía.",
     dDone: (d, n) => `Hecha en ${d}${n > 1 ? ` · ${n} intentos` : ""}`, dRunning: "En curso desde {0}", dPlanned: "Prevista {0} → {1} (~{2})", dNoDate: "Sin fecha: depende de algo bloqueado",
     iteration: "{0} · iteración {1}", close: "Cerrar", steps: "Pasos", dependsOn: "Depende de", neededBy: "La necesitan", attempts: "Intentos",
@@ -795,7 +795,7 @@ function renderGantt() {
     if (!showDates && Math.abs(X(k.t) - X(M.now)) > 45) head += `<div class="tick" style="left:${X(k.t)}px"><span>${fmtH.format(k.t)}</span></div>`;
   }
   if (!ticks.some(k => k.day && X(k.t) < 160)) head = `<div class="tick day" style="left:0"><span>${esc(fmtD.format(t0))}</span></div>` + head;
-  const evs = data.events.filter(e => ["replan", "sweep", "start", "stop", "halt"].includes(e.kind))
+  const evs = data.events.filter(e => ["replan", "sweep", "start", "stop", "halt", "security", "usertest"].includes(e.kind))
     .map(e => `<div class="ev" style="left:${X(e.ts)}px" title="${esc(fmtDT.format(e.ts) + " · " + e.text)}"></div>`).join("");
 
   const segsFor = f => {
@@ -959,7 +959,7 @@ function feedHTML() {
   }
   const EVK = { replan: ["var(--fail)", "↻"], sweep: ["var(--accent)", "⟳"], regression: ["var(--blocked)", "!"],
     start: ["var(--muted)", "▸"], stop: ["var(--muted)", "Ⅱ"], halt: ["var(--blocked)", "■"], done: ["var(--done)", "★"],
-    blocked: ["var(--blocked)", "⊘"] };
+    blocked: ["var(--blocked)", "⊘"], security: ["var(--accent)", "⛨"], usertest: ["var(--accent)", "◉"] };
   for (const e of data.events) { const k = EVK[e.kind]; if (k) items.push({ t: e.ts, c: k[0], i: k[1], tx: t("ev")[e.kind], s: e.text }); }
   items.sort((a, b) => b.t - a.t);
   return items.slice(0, 6).map(x => `<li><span class="av" style="color:${x.c};background:color-mix(in srgb, ${x.c} 16%, transparent)">${x.i}</span>
