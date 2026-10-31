@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-10-31
 
 - Automatic security review when the features run out, before the user test: read-only reviewers in parallel
   (`prompts/SECURITY.md`) look for exploitable flaws, a triage (`prompts/SECURITY_TRIAGE.md`) refutes what it can and
