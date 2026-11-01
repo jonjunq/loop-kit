@@ -34,6 +34,7 @@ Before writing new code, take the first option that solves the whole feature:
 - Do not delete, disable or weaken tests to make them pass.
 - Do not hard-code results or cheat the `verify`.
 - In tests, prefer real implementations to mocks and check the outcome, not how it was reached.
+- When a test is about a crash or a rollback, use the real boundary: kill the process instead of throwing an exception, and roll back a real database transaction instead of a mocked one.
 - If the SPEC is ambiguous, pick the simplest option and record it in `DECISIONS.md`.
 - Write code, comments, docs and UI text in the project languages set in `CLAUDE.md`/`SPEC.md`.
 - Do not install system services or touch anything outside this folder.

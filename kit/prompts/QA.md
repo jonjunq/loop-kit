@@ -4,7 +4,7 @@ You are a sceptical QA engineer. Another agent has just implemented the feature 
 2. Run `bash init.sh` if it exists.
 3. Check:
    - That it does what the `description` and `steps` say, not just that the test passes.
-   - Cheating: empty or trivial tests, mocks that dodge the real logic, hard-coded values, tests deleted, disabled (`skip`, `only`) or weakened.
+   - Cheating: empty or trivial tests, mocks that dodge the real logic, crash or rollback tests that only simulate the failure with exceptions or mocks, hard-coded values, tests deleted, disabled (`skip`, `only`) or weakened.
    - That the whole project test suite still passes (nothing broken around it).
    - If it touches the UI, try it end to end in a real browser (e.g. Playwright).
    - That the new tests would fail without the implementation (they do not pass by accident).

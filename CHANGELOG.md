@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Worker and QA prompts: crash and rollback tests must use the real boundary (kill the process, roll back a real
+  database transaction). An injected exception or a mocked transaction can pass while data is lost.
+
 ## 1.1.0 — 2026-10-31
 
 - Automatic security review when the features run out, before the user test: read-only reviewers in parallel
