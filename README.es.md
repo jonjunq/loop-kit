@@ -9,13 +9,15 @@ Incluye un roadmap en vivo, un vigilante de uso para planes de suscripción, una
 [Read in English](README.md)
 
 <p align="center">
+  <a href="https://jonjunq.github.io/loop-kit/diagrams/how-it-works.es.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/how-it-works-dark.es.svg">
     <img src="docs/diagrams/how-it-works-light.es.svg" width="100%" alt="Cómo construye loop-kit un proyecto: tú y Claude escribís el plan; run.sh elige la siguiente feature; un Worker en sesión limpia escribe tests y código; el arnés ejecuta verify; un QA en sesión limpia intenta romperla; si pasa, el arnés marca passes = true, hace commit y elige la siguiente. Los fallos vuelven a run.sh, lo atascado va al Replanner y, cuando no queda nada, hay revisión de seguridad y prueba de usuario antes del aviso final.">
   </picture>
+  </a>
 </p>
 
-<sub>Versión interactiva (zoom, claro/oscuro, seguir un camino): [docs/diagrams/how-it-works.es.html](docs/diagrams/how-it-works.es.html), descárgala y ábrela en el navegador. Dibujado con [Archify](https://github.com/tt-a1i/archify).</sub>
+<sub>Versión interactiva (zoom, claro/oscuro, seguir un camino): [ábrela en el navegador](https://jonjunq.github.io/loop-kit/diagrams/how-it-works.es.html). Dibujado con [Archify](https://github.com/tt-a1i/archify).</sub>
 
 ## Por qué otro bucle
 

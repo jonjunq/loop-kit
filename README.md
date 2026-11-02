@@ -9,13 +9,15 @@ It comes with a live roadmap, a usage guard for subscription plans, an always-up
 [Leer en castellano](README.es.md)
 
 <p align="center">
+  <a href="https://jonjunq.github.io/loop-kit/diagrams/how-it-works.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/how-it-works-dark.svg">
     <img src="docs/diagrams/how-it-works-light.svg" width="100%" alt="How loop-kit builds a project: you and Claude write the plan; run.sh picks the next feature; a fresh Worker session writes tests and code; the harness runs verify; a fresh QA session tries to break it; on PASS the harness marks passes = true and commits, then picks the next one. Failures go back to run.sh, a stuck feature goes to the Replanner, and when nothing is left a security review and a user test run before the final notification.">
   </picture>
+  </a>
 </p>
 
-<sub>Interactive version (zoom, light/dark, trace a path): [docs/diagrams/how-it-works.html](docs/diagrams/how-it-works.html), download it and open it in a browser. Drawn with [Archify](https://github.com/tt-a1i/archify).</sub>
+<sub>Interactive version (zoom, light/dark, trace a path): [open it in your browser](https://jonjunq.github.io/loop-kit/diagrams/how-it-works.html). Drawn with [Archify](https://github.com/tt-a1i/archify).</sub>
 
 ## Why another loop
 

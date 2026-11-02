@@ -6,7 +6,7 @@ tested with v3.2.0.
 | File | What it is |
 |---|---|
 | `how-it-works.archify.json`, `how-it-works.es.archify.json` | The source (English / Spanish). Edit these. |
-| `how-it-works.html`, `how-it-works.es.html` | Interactive version: one self-contained file, works offline. Download and open it in a browser. |
+| `how-it-works.html`, `how-it-works.es.html` | Interactive version: one self-contained file, works offline. Published at [https://jonjunq.github.io/loop-kit/diagrams/how-it-works.html](https://jonjunq.github.io/loop-kit/diagrams/how-it-works.html) (GitHub Pages serves `docs/`). |
 | `how-it-works-light.svg`, `how-it-works-dark.svg` (and `.es.svg`) | Static images used by the README, light and dark. |
 
 To regenerate after editing a source (needs Node 18+ and Chrome or Chromium; Archify installed as a skill):

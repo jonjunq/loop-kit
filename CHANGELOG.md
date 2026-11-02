@@ -3,7 +3,8 @@
 ## Unreleased
 
 - README diagram redrawn with [Archify](https://github.com/tt-a1i/archify) instead of Mermaid: light and dark SVG,
-  plus an interactive HTML version and its source in [docs/diagrams/](docs/diagrams/).
+  plus an interactive HTML version ([online](https://jonjunq.github.io/loop-kit/diagrams/how-it-works.html), GitHub Pages from `docs/`) and its source in
+  [docs/diagrams/](docs/diagrams/).
 - Worker and QA prompts: crash and rollback tests must use the real boundary (kill the process, roll back a real
   database transaction). An injected exception or a mocked transaction can pass while data is lost.
 - `[no usertest]` at the end of a `change:` commit subject closes the batch without user-test rounds, for polish or
