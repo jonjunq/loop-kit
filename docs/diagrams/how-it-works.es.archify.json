@@ -1,0 +1,195 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "loop-kit: cómo se construye un proyecto",
+    "locale": "es",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/how-it-works.es.html"
+  },
+  "mainPath": [
+    "plan",
+    "pick",
+    "worker",
+    "verify",
+    "qa",
+    "commit"
+  ],
+  "states": [
+    {
+      "id": "plan",
+      "type": "start",
+      "label": "Plan",
+      "sublabel": "SPEC.md + features.json",
+      "step": "01"
+    },
+    {
+      "id": "pick",
+      "type": "decision",
+      "label": "run.sh",
+      "sublabel": "elige una feature",
+      "tag": "arnés",
+      "step": "02"
+    },
+    {
+      "id": "worker",
+      "type": "active",
+      "label": "Worker",
+      "sublabel": "tests + código",
+      "tag": "agente",
+      "step": "03"
+    },
+    {
+      "id": "verify",
+      "type": "decision",
+      "label": "verify",
+      "sublabel": "lo ejecuta el arnés",
+      "tag": "arnés",
+      "step": "04"
+    },
+    {
+      "id": "qa",
+      "type": "decision",
+      "label": "QA",
+      "sublabel": "intenta romperla",
+      "tag": "agente",
+      "step": "05"
+    },
+    {
+      "id": "commit",
+      "type": "success",
+      "label": "passes = true",
+      "sublabel": "commit",
+      "tag": "arnés",
+      "step": "06"
+    },
+    {
+      "id": "replanner",
+      "type": "waiting",
+      "label": "Replanner",
+      "sublabel": "divide / reordena el plan",
+      "tag": "agente"
+    },
+    {
+      "id": "security",
+      "type": "decision",
+      "label": "Revisión de seguridad",
+      "sublabel": "solo lectura + triaje",
+      "tag": "agentes"
+    },
+    {
+      "id": "usertest",
+      "type": "decision",
+      "label": "Prueba de usuario",
+      "sublabel": "probadores con navegador",
+      "tag": "agentes"
+    },
+    {
+      "id": "done",
+      "type": "success",
+      "label": "Terminado",
+      "sublabel": "te llega un aviso"
+    }
+  ],
+  "transitions": [
+    {
+      "from": "plan",
+      "to": "pick",
+      "label": "empieza"
+    },
+    {
+      "from": "pick",
+      "to": "worker",
+      "label": "va"
+    },
+    {
+      "from": "worker",
+      "to": "verify"
+    },
+    {
+      "from": "verify",
+      "to": "qa",
+      "label": "pasa"
+    },
+    {
+      "from": "qa",
+      "to": "commit",
+      "label": "PASS"
+    },
+    {
+      "from": "verify",
+      "to": "pick",
+      "label": "falla",
+      "variant": "security"
+    },
+    {
+      "from": "qa",
+      "to": "pick",
+      "label": "FAIL",
+      "variant": "security"
+    },
+    {
+      "from": "commit",
+      "to": "pick",
+      "label": "siguiente"
+    },
+    {
+      "from": "pick",
+      "to": "replanner",
+      "label": "atascado",
+      "variant": "dashed"
+    },
+    {
+      "from": "replanner",
+      "to": "pick",
+      "label": "plan nuevo",
+      "variant": "dashed"
+    },
+    {
+      "from": "pick",
+      "to": "security",
+      "label": "no queda nada"
+    },
+    {
+      "from": "security",
+      "to": "pick",
+      "label": "hallazgos",
+      "variant": "security"
+    },
+    {
+      "from": "security",
+      "to": "usertest",
+      "label": "limpio"
+    },
+    {
+      "from": "usertest",
+      "to": "pick",
+      "label": "fallos",
+      "variant": "security"
+    },
+    {
+      "from": "usertest",
+      "to": "done",
+      "label": "limpio",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "La nota la pone el arnés",
+      "items": [
+        "Solo el arnés escribe features.json",
+        "Si un agente se marca como hecho, se revierte"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Sesiones limpias, sin contexto compartido",
+      "items": [
+        "Worker, QA, seguridad y prueba de usuario: cada uno en su sesión",
+        "El replanner solo puede tocar el plan"
+      ]
+    }
+  ]
+}

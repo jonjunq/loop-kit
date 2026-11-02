@@ -1,0 +1,2 @@
+docs/diagrams/*.html linguist-generated=true -diff
+docs/diagrams/*.svg linguist-generated=true -diff

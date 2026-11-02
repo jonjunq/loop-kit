@@ -8,24 +8,14 @@ Incluye un roadmap en vivo, un vigilante de uso para planes de suscripción, una
 
 [Read in English](README.md)
 
-```mermaid
-flowchart LR
-  P[Tú + Claude<br/>planificáis: SPEC.md, features.json] --> H{{run.sh<br/>elige la siguiente feature}}
-  H --> W[Worker<br/>sesión limpia, tests + código]
-  W --> V[comando verify<br/>lo ejecuta el arnés]
-  V -- falla --> H
-  V -- pasa --> Q[QA<br/>sesión limpia, intenta romperla]
-  Q -- FAIL --> H
-  Q -- PASS --> D[passes = true<br/>commit]
-  D --> H
-  H -- atascado --> R[Replanner<br/>divide / reordena]
-  R --> H
-  H -- no queda nada --> S[Revisión de seguridad<br/>revisores de solo lectura + triaje]
-  S -- hallazgos --> H
-  S -- limpio --> U[Prueba de usuario<br/>probadores con navegador + triaje]
-  U -- fallos --> H
-  U -- limpio --> E[Terminado: aviso]
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/how-it-works-dark.es.svg">
+    <img src="docs/diagrams/how-it-works-light.es.svg" width="100%" alt="Cómo construye loop-kit un proyecto: tú y Claude escribís el plan; run.sh elige la siguiente feature; un Worker en sesión limpia escribe tests y código; el arnés ejecuta verify; un QA en sesión limpia intenta romperla; si pasa, el arnés marca passes = true, hace commit y elige la siguiente. Los fallos vuelven a run.sh, lo atascado va al Replanner y, cuando no queda nada, hay revisión de seguridad y prueba de usuario antes del aviso final.">
+  </picture>
+</p>
+
+<sub>Versión interactiva (zoom, claro/oscuro, seguir un camino): [docs/diagrams/how-it-works.es.html](docs/diagrams/how-it-works.es.html), descárgala y ábrela en el navegador. Dibujado con [Archify](https://github.com/tt-a1i/archify).</sub>
 
 ## Por qué otro bucle
 

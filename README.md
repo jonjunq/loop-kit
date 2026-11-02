@@ -8,24 +8,14 @@ It comes with a live roadmap, a usage guard for subscription plans, an always-up
 
 [Leer en castellano](README.es.md)
 
-```mermaid
-flowchart LR
-  P[You + Claude<br/>plan: SPEC.md, features.json] --> H{{run.sh<br/>picks the next feature}}
-  H --> W[Worker<br/>fresh session, writes tests + code]
-  W --> V[verify command<br/>run by the harness]
-  V -- fails --> H
-  V -- passes --> Q[QA<br/>fresh session, tries to break it]
-  Q -- FAIL --> H
-  Q -- PASS --> D[passes = true<br/>commit]
-  D --> H
-  H -- stuck --> R[Replanner<br/>splits / reorders]
-  R --> H
-  H -- nothing left --> S[Security review<br/>read-only reviewers + triage]
-  S -- findings --> H
-  S -- clean --> U[User test<br/>testers with a browser + triage]
-  U -- bugs --> H
-  U -- clean --> E[Done: notification]
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/how-it-works-dark.svg">
+    <img src="docs/diagrams/how-it-works-light.svg" width="100%" alt="How loop-kit builds a project: you and Claude write the plan; run.sh picks the next feature; a fresh Worker session writes tests and code; the harness runs verify; a fresh QA session tries to break it; on PASS the harness marks passes = true and commits, then picks the next one. Failures go back to run.sh, a stuck feature goes to the Replanner, and when nothing is left a security review and a user test run before the final notification.">
+  </picture>
+</p>
+
+<sub>Interactive version (zoom, light/dark, trace a path): [docs/diagrams/how-it-works.html](docs/diagrams/how-it-works.html), download it and open it in a browser. Drawn with [Archify](https://github.com/tt-a1i/archify).</sub>
 
 ## Why another loop
 

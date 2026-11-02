@@ -1,0 +1,195 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "loop-kit: how a project gets built",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/how-it-works.html"
+  },
+  "mainPath": [
+    "plan",
+    "pick",
+    "worker",
+    "verify",
+    "qa",
+    "commit"
+  ],
+  "states": [
+    {
+      "id": "plan",
+      "type": "start",
+      "label": "Plan",
+      "sublabel": "SPEC.md + features.json",
+      "step": "01"
+    },
+    {
+      "id": "pick",
+      "type": "decision",
+      "label": "run.sh",
+      "sublabel": "picks a feature",
+      "tag": "harness",
+      "step": "02"
+    },
+    {
+      "id": "worker",
+      "type": "active",
+      "label": "Worker",
+      "sublabel": "tests + code",
+      "tag": "agent",
+      "step": "03"
+    },
+    {
+      "id": "verify",
+      "type": "decision",
+      "label": "verify",
+      "sublabel": "run by the harness",
+      "tag": "harness",
+      "step": "04"
+    },
+    {
+      "id": "qa",
+      "type": "decision",
+      "label": "QA",
+      "sublabel": "tries to break it",
+      "tag": "agent",
+      "step": "05"
+    },
+    {
+      "id": "commit",
+      "type": "success",
+      "label": "passes = true",
+      "sublabel": "commit",
+      "tag": "harness",
+      "step": "06"
+    },
+    {
+      "id": "replanner",
+      "type": "waiting",
+      "label": "Replanner",
+      "sublabel": "splits / reorders the plan",
+      "tag": "agent"
+    },
+    {
+      "id": "security",
+      "type": "decision",
+      "label": "Security review",
+      "sublabel": "read-only reviewers + triage",
+      "tag": "agents"
+    },
+    {
+      "id": "usertest",
+      "type": "decision",
+      "label": "User test",
+      "sublabel": "testers with a browser + triage",
+      "tag": "agents"
+    },
+    {
+      "id": "done",
+      "type": "success",
+      "label": "Done",
+      "sublabel": "you get a notification"
+    }
+  ],
+  "transitions": [
+    {
+      "from": "plan",
+      "to": "pick",
+      "label": "start"
+    },
+    {
+      "from": "pick",
+      "to": "worker",
+      "label": "go"
+    },
+    {
+      "from": "worker",
+      "to": "verify"
+    },
+    {
+      "from": "verify",
+      "to": "qa",
+      "label": "passes"
+    },
+    {
+      "from": "qa",
+      "to": "commit",
+      "label": "PASS"
+    },
+    {
+      "from": "verify",
+      "to": "pick",
+      "label": "fails",
+      "variant": "security"
+    },
+    {
+      "from": "qa",
+      "to": "pick",
+      "label": "FAIL",
+      "variant": "security"
+    },
+    {
+      "from": "commit",
+      "to": "pick",
+      "label": "next"
+    },
+    {
+      "from": "pick",
+      "to": "replanner",
+      "label": "stuck",
+      "variant": "dashed"
+    },
+    {
+      "from": "replanner",
+      "to": "pick",
+      "label": "new plan",
+      "variant": "dashed"
+    },
+    {
+      "from": "pick",
+      "to": "security",
+      "label": "nothing left"
+    },
+    {
+      "from": "security",
+      "to": "pick",
+      "label": "findings",
+      "variant": "security"
+    },
+    {
+      "from": "security",
+      "to": "usertest",
+      "label": "clean"
+    },
+    {
+      "from": "usertest",
+      "to": "pick",
+      "label": "bugs",
+      "variant": "security"
+    },
+    {
+      "from": "usertest",
+      "to": "done",
+      "label": "clean",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "The harness keeps the score",
+      "items": [
+        "Only the harness writes features.json",
+        "An agent that marks itself done gets reverted"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Every check is a fresh session",
+      "items": [
+        "Worker, QA, security and user test: each a fresh session",
+        "The replanner may only touch the plan"
+      ]
+    }
+  ]
+}
