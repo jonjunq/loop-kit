@@ -4,6 +4,10 @@
 
 - Worker and QA prompts: crash and rollback tests must use the real boundary (kill the process, roll back a real
   database transaction). An injected exception or a mocked transaction can pass while data is lost.
+- `[no usertest]` at the end of a `change:` commit subject closes the batch without user-test rounds, for polish or
+  clean-up batches (each round adds fix features and makes the batch longer).
+- QA does not run the whole suite again when the feature's `verify` already did; with a partial `verify` it runs only
+  the tests for what the diff touches.
 
 ## 1.1.0 — 2026-10-31
 

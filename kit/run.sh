@@ -266,6 +266,7 @@ ut_stop() {
 trap ut_stop EXIT
 usertest_pending() {
   (( USERTEST_ROUNDS > 0 )) && [[ -f usertest.env ]] || return 1
+  ! git log --format=%s | grep -m1 '^change:' | grep -qF '[no usertest]' || return 1  # the owner asked for a batch without user test
   (( $(since_batch | grep -c '^usertest: round') < USERTEST_ROUNDS )) || return 1
   ! since_batch | grep -m1 '^usertest: round' | grep -q 'nothing to fix'
 }

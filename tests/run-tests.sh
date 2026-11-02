@@ -136,6 +136,20 @@ check "round 2 found nothing and closed the batch" git -C "$P" log --format=%s -
 check "tester/triage code changes discarded" bash -c "! grep -qE 'tester was here|triage touched code' '$P/src.txt'"
 check "the copy was shut down" bash -c "! curl -sf -o /dev/null http://127.0.0.1:$PORT/"
 
+echo "batch without user test"
+P=$(project nousertest "$(feature F001 '[]' 1)")
+PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); print(s.getsockname()[1])')
+cat > "$P/usertest.env" <<EOF
+USERTEST_PORT=$PORT
+USERTEST_START='exec python3 -m http.server "\$USERTEST_PORT" --bind 127.0.0.1'
+USERTEST_ZONES=("alpha|the alpha zone")
+EOF
+git -C "$P" add -A && git -C "$P" commit -qm "change: polish only [no usertest]"
+printf 'bug\n' > "$P/mock/tester-alpha"
+run "$P"
+check "[no usertest] skips the user test" bash -c "! git -C '$P' log --format=%s | grep -q '^usertest: round'"
+check "...and the batch still finishes" test "$(passes "$P" F001)" = true
+
 echo "automatic security review"
 P=$(project security "$(feature F001 '[]' 1)")
 PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("",0)); print(s.getsockname()[1])')

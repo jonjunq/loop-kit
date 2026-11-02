@@ -99,7 +99,8 @@ done the harness:
    keeps looping.
 
 Up to `USERTEST_ROUNDS` rounds per batch (counted since the last `change:` commit); a round with nothing to fix
-closes it. Each round costs roughly as much as 4-5 iterations.
+closes it. Each round costs roughly as much as 4-5 iterations, and the fixes it adds make the batch longer: for a
+batch of polish or clean-up, put `[no usertest]` in the `change:` commit subject and the batch ends without it.
 
 ## The roadmap
 
