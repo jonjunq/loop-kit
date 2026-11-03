@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fix: `[no usertest]` was ignored in projects with a long history (the batch got a user test anyway). With
+  `set -o pipefail`, `git log | grep -m1 … | grep -q` failed with SIGPIPE when grep stopped reading early, and the `!`
+  turned that into the opposite answer. The checks in `usertest_pending`, `security_pending` and the transient-error
+  detection now compare in a variable. Tests run on a 3,000-commit history.
 - README diagram redrawn with [Archify](https://github.com/tt-a1i/archify) instead of Mermaid: light and dark SVG,
   plus an interactive HTML version ([online](https://jonjunq.github.io/loop-kit/diagrams/how-it-works.html), GitHub Pages from `docs/`) and its source in
   [docs/diagrams/](docs/diagrams/).

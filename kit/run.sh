@@ -114,7 +114,7 @@ $4}" $PERMS --max-turns "$MAX_TURNS" "${margs[@]}" \
   case "$(jq -r '.subtype' <<<"$res")" in
     error_max_turns) echo max_turns ;;
     success) if [[ "$(jq -r '.is_error' <<<"$res")" != true ]]; then echo ok
-             elif jq -r '.result // ""' <<<"$res" | grep -qiE 'limit|rate|overload|429|529|quota|credit|api error|network'; then echo transient
+             elif grep -qiE 'limit|rate|overload|429|529|quota|credit|api error|network' <<<"$(jq -r '.result // ""' <<<"$res")"; then echo transient
              else echo error; fi ;;
     *) echo error ;;
   esac
@@ -199,7 +199,8 @@ since_batch() { git log --format=%s | awk '/^change:/{exit} {print}'; }  # commi
 security_pending() {
   (( SECURITY_ROUNDS > 0 )) || return 1
   (( $(since_batch | grep -c '^security: round') < SECURITY_ROUNDS )) || return 1
-  ! since_batch | grep -m1 '^security: round' | grep -q 'nothing to fix'
+  local last_round; last_round=$(since_batch | grep -m1 '^security: round')  # no pipe into grep -q: see usertest_pending
+  [[ $last_round != *'nothing to fix'* ]]
 }
 security_end() { # $1 = round, $2 = summary. Records the round even when nothing changed
   log "Security review, round $1: $2"; progress "Security review, round $1: $2"
@@ -266,9 +267,14 @@ ut_stop() {
 trap ut_stop EXIT
 usertest_pending() {
   (( USERTEST_ROUNDS > 0 )) && [[ -f usertest.env ]] || return 1
-  ! git log --format=%s | grep -m1 '^change:' | grep -qF '[no usertest]' || return 1  # the owner asked for a batch without user test
+  # No pipe ending in grep -m1/-q here: with pipefail, git log gets SIGPIPE when grep stops reading early,
+  # the pipe counts as failed and the `!` turned that into the opposite answer. Compare in a variable instead.
+  local last_change last_round
+  last_change=$(git log --format=%s | grep -m1 '^change:')
+  [[ $last_change != *'[no usertest]'* ]] || return 1  # the owner asked for a batch without user test
   (( $(since_batch | grep -c '^usertest: round') < USERTEST_ROUNDS )) || return 1
-  ! since_batch | grep -m1 '^usertest: round' | grep -q 'nothing to fix'
+  last_round=$(since_batch | grep -m1 '^usertest: round')
+  [[ $last_round != *'nothing to fix'* ]]
 }
 usertest_end() { # $1 = round, $2 = summary. Records the round even when nothing changed
   log "User test, round $1: $2"; progress "User test, round $1: $2"

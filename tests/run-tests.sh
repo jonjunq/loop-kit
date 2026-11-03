@@ -29,6 +29,18 @@ project() { # $1 = name, rest = features json objects. Creates a fresh project w
   echo "$p"
 }
 run() { (cd "$1" && shift && env "$@" timeout 120 ./loopkit/run.sh >/dev/null 2>&1); }
+filler() { # $1 = project, $2 = count. A long history, so `git log | grep -m1` really gets SIGPIPE (pipefail traps)
+  python3 -I - "$1" "$2" <<'PY' | git -C "$1" fast-import --quiet
+import subprocess, sys
+p, n = sys.argv[1], int(sys.argv[2])
+ref = subprocess.check_output(["git", "-C", p, "symbolic-ref", "HEAD"], text=True).strip()
+head = subprocess.check_output(["git", "-C", p, "rev-parse", "HEAD"], text=True).strip()
+for i in range(1, n + 1):
+    msg = f"filler commit {i:05d} {'x' * 60}\n"
+    sys.stdout.write(f"commit {ref}\ncommitter t <t@t> {1700000000 + i} +0000\ndata {len(msg.encode())}\n{msg}")
+    sys.stdout.write(f"from {head}\n\n" if i == 1 else "\n")
+PY
+}
 passes() { jq -r --arg id "$2" '.features[]|select(.id==$id)|.passes' "$1/features.json"; }
 field() { jq -r --arg id "$2" ".features[]|select(.id==\$id)|$3" "$1/features.json"; }
 
@@ -126,13 +138,15 @@ USERTEST_START='exec python3 -m http.server "\$USERTEST_PORT" --bind 127.0.0.1'
 USERTEST_INFO='static test server'
 USERTEST_ZONES=("alpha|the alpha zone" "beta|the beta zone")
 EOF
+filler "$P" 3000   # long history before the batch: since_batch's git log is cut off by awk (pipefail traps)
 git -C "$P" add -A && git -C "$P" commit -qm "change: usertest config"
 printf 'bug\n' > "$P/mock/tester-alpha"
-run "$P"
+run "$P" USERTEST_ROUNDS=3
 check "testers reached the isolated copy" grep -q 'copy reachable: True' "$P"/logs/usertest-*/report-alpha.md
 check "round 1 created a fix feature" git -C "$P" log --format=%s --grep='^usertest: round 1 · fix features: F002'
 check "the loop built the fix" test "$(passes "$P" F002)" = true
 check "round 2 found nothing and closed the batch" git -C "$P" log --format=%s --grep='^usertest: round 2 · nothing to fix'
+check "...and no round 3 even with USERTEST_ROUNDS=3" test "$(git -C "$P" log --format=%s | grep -c '^usertest: round')" = 2
 check "tester/triage code changes discarded" bash -c "! grep -qE 'tester was here|triage touched code' '$P/src.txt'"
 check "the copy was shut down" bash -c "! curl -sf -o /dev/null http://127.0.0.1:$PORT/"
 
@@ -144,6 +158,7 @@ USERTEST_PORT=$PORT
 USERTEST_START='exec python3 -m http.server "\$USERTEST_PORT" --bind 127.0.0.1'
 USERTEST_ZONES=("alpha|the alpha zone")
 EOF
+filler "$P" 3000   # long history: the check must hold even when git log is cut off by grep -m1
 git -C "$P" add -A && git -C "$P" commit -qm "change: polish only [no usertest]"
 printf 'bug\n' > "$P/mock/tester-alpha"
 run "$P"
