@@ -10,11 +10,11 @@ It comes with a live roadmap, a usage guard for subscription plans, an always-up
 
 <p align="center">
   <a href="https://jonjunq.github.io/loop-kit/video/loop-kit.mp4">
-    <img src="docs/video/poster.jpg" width="100%" alt="Play the 17-second video: a harness builds the project one feature at a time and keeps the score, the live roadmap shows the estimated finish, and a guard pauses the loop at the usage limit and restarts it when usage renews.">
+    <img src="docs/video/loop-kit.webp" width="100%" alt="17-second animation: a harness builds the project one feature at a time and keeps the score, the live roadmap shows the estimated finish, and a guard pauses the loop at the usage limit and restarts it when usage renews.">
   </a>
 </p>
 
-<sub>▶ loop-kit in 17 seconds, no sound: [watch the video](https://jonjunq.github.io/loop-kit/video/loop-kit.mp4). Made with [HyperFrames](https://github.com/heygen-com/hyperframes).</sub>
+<sub>▶ 17 s, no sound · [full-quality video](https://jonjunq.github.io/loop-kit/video/loop-kit.mp4). Made with [HyperFrames](https://github.com/heygen-com/hyperframes).</sub>
 
 <p align="center">
   <a href="https://jonjunq.github.io/loop-kit/diagrams/how-it-works.html">

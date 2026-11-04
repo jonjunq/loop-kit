@@ -10,11 +10,11 @@ Incluye un roadmap en vivo, un vigilante de uso para planes de suscripción, una
 
 <p align="center">
   <a href="https://jonjunq.github.io/loop-kit/video/loop-kit.es.mp4">
-    <img src="docs/video/poster.es.jpg" width="100%" alt="Ver el vídeo de 17 segundos: un arnés construye el proyecto feature a feature y lleva la nota, el roadmap en vivo enseña la hora de fin estimada y un vigilante para el bucle al llegar al límite de uso y lo relanza cuando se renueva.">
+    <img src="docs/video/loop-kit.es.webp" width="100%" alt="Animación de 17 segundos: un arnés construye el proyecto feature a feature y lleva la nota, el roadmap en vivo enseña la hora de fin estimada y un vigilante para el bucle al llegar al límite de uso y lo relanza cuando se renueva.">
   </a>
 </p>
 
-<sub>▶ loop-kit en 17 segundos, sin sonido: [ver el vídeo](https://jonjunq.github.io/loop-kit/video/loop-kit.es.mp4). Hecho con [HyperFrames](https://github.com/heygen-com/hyperframes).</sub>
+<sub>▶ 17 s, sin sonido · [vídeo en calidad completa](https://jonjunq.github.io/loop-kit/video/loop-kit.es.mp4). Hecho con [HyperFrames](https://github.com/heygen-com/hyperframes).</sub>
 
 <p align="center">
   <a href="https://jonjunq.github.io/loop-kit/diagrams/how-it-works.es.html">
