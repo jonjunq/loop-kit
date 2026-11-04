@@ -9,6 +9,14 @@ It comes with a live roadmap, a usage guard for subscription plans, an always-up
 [Leer en castellano](README.es.md)
 
 <p align="center">
+  <a href="https://jonjunq.github.io/loop-kit/video/loop-kit.mp4">
+    <img src="docs/video/poster.jpg" width="100%" alt="Play the 17-second video: a harness builds the project one feature at a time and keeps the score, the live roadmap shows the estimated finish, and a guard pauses the loop at the usage limit and restarts it when usage renews.">
+  </a>
+</p>
+
+<sub>▶ loop-kit in 17 seconds, no sound: [watch the video](https://jonjunq.github.io/loop-kit/video/loop-kit.mp4). Made with [HyperFrames](https://github.com/heygen-com/hyperframes).</sub>
+
+<p align="center">
   <a href="https://jonjunq.github.io/loop-kit/diagrams/how-it-works.html">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/how-it-works-dark.svg">
