@@ -1,7 +1,38 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 — 2026-11-06
 
+- **The harness protects itself.** Whatever the worker changes in `loopkit/` (prompts, scripts), `demo.env` or
+  `usertest.env` is reverted after its session ("Worker touched the harness -> reverted"), and `loopkit.env`, which is
+  git-ignored and so survived every reset, is restored after any agent's session from a copy taken at start. Your
+  own changes still go in through `PAUSE` (`prompts/CHANGE.md`): the copy is taken again when the loop restarts.
+- **Red flags for the QA.** The harness reads the worker's diff and hands the QA what looks like a weakened check:
+  test files deleted, `skip`/`only`/`xit`/`@skip`/`todo` added, fewer assertions or test cases, changes to the files
+  the verify runs or to the test runner's configuration. The QA checks each one; a flag is not a verdict.
+- **Red before starting.** Before the first worker of a feature, the harness runs its verify; if it already passes
+  (an empty or weak verify, or work an earlier feature already did) no worker starts and the replanner gets it with
+  the note "verify already passes before any work". Once per verify, never on retries, not for "Full regression"
+  gates. On the first start of a plan every pending verify is checked and the green ones go to one replan.
+- **Durable learnings.** `LEARNINGS.md` (template in `templates/`, created by the planner or by the harness if
+  missing): conventions, commands and gotchas every worker reads first and adds to only with general, reusable
+  lessons, 80 lines at most (the harness asks the next worker to condense it when it grows). Workers still read only
+  the last 60 lines of `PROGRESS.md`. After the "Codebase Patterns" section of snarktank/ralph.
+- **Usage limits: wait for the reset, then resume.** The limit is detected from Claude Code's `rate_limit_event`
+  (`status: rejected`) and its `usage_limit_reached` error, with the message as a fallback ("usage limit
+  reached|<epoch>", "resets 3pm (Europe/Madrid)", "try again in 2h"); the harness notifies the resume time, sleeps
+  until the reset plus two minutes (`logs/waiting`, so the usage guard does not put a STOP that would lose the
+  session) and resumes the same session with `claude --resume <session_id>` when it had started working, or starts a
+  new one if the resume fails. Network failures resume the same way. `STOP`/`PAUSE` end the wait without counting an
+  attempt.
+- **Hung sessions are killed.** New setting `HANG_SECONDS` (default `VERIFY_TIMEOUT` + 10 min, `0` = off): a session
+  whose transcript stops growing that long is killed and counts as a failed attempt ("hung: no output for N s").
+- **No leftover processes.** Sessions and verifies run with a token in their environment, so whatever they start,
+  detached dev servers included, is found and killed when they end. They also no longer inherit the loop's lock
+  (a leftover server holding it made the guard think the loop was still running).
+- A transcript is now read only from where the current session started: a retry no longer sees the previous
+  attempt's result.
+- README: credits Anthropic's "Effective harnesses for long-running agents" and cites arXiv:2607.25152 on
+  self-evaluating loops.
 - Fix: `[no usertest]` was ignored in projects with a long history (the batch got a user test anyway). With
   `set -o pipefail`, `git log | grep -m1 … | grep -q` failed with SIGPIPE when grep stopped reading early, and the `!`
   turned that into the opposite answer. The checks in `usertest_pending`, `security_pending` and the transient-error

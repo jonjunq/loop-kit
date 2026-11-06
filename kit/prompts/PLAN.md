@@ -31,7 +31,7 @@ When you can predict my answers to your next three questions, stop and write a s
    - `verify` is a shell command the harness runs as is with `bash -c` from the repo root, with no agent around. Requirements:
      - Self-contained: it starts whatever it needs (e.g. Playwright's `webServer`) and leaves no processes behind.
      - Non-interactive, deterministic and under 15 minutes.
-     - Exit code 0 only if the feature works; never "check that it looks fine".
+     - Exit code 0 only if the feature works; never "check that it looks fine". It must fail today: before the first worker of each feature the harness runs it, and one that already passes (it checks nothing) goes to the replanner.
      - It targets concrete tests of that feature (e.g. `npx playwright test e2e/login.spec.ts`, `pytest tests/test_login.py`), which the worker will write.
    - Logical order with `priority` and `depends_on` (no cycles, only existing ids). Include end-to-end tests of complete flows near the end.
    - Security by design. A loop builds exactly what the plan says, and projects with green tests have shipped every one of these, so write them into `SPEC.md` (boundaries) and into the features that touch them:
@@ -43,7 +43,7 @@ When you can predict my answers to your next three questions, stop and write a s
      - Features that expose anything derived from sensitive data (location, distances, presence, "last seen") include an anti-probing plan: the server does not trust client-supplied facts it cannot check (e.g. impossible jumps in position), obfuscation uses a server-side secret, and repeated requests do not reveal more than one does.
 4. `init.sh`: idempotent, installs dependencies and leaves the environment ready to work and test (leaving no processes behind).
 5. `.gitignore` for the stack (dependencies, builds, test reports) plus `logs/`, `STOP`, `PAUSE`, `loopkit.env`, `.demo/` and `__pycache__/`.
-6. `PROGRESS.md` and `DECISIONS.md`, empty except for a title.
+6. `PROGRESS.md` and `DECISIONS.md`, empty except for a title, and `LEARNINGS.md` from `loopkit/templates/LEARNINGS.md` (in adoption mode, seed it with the conventions, commands and gotchas you found in phase 0; at most 80 lines).
 7. `demo.env` (if there is something to show): read by `loopkit/demo.sh`, which keeps a copy of the app always on the latest passing feature, so the owner can show it while the loop works. Shell variables:
    ```bash
    DEMO_PORT=3000                       # different from 8090 and from the test ports
@@ -78,4 +78,4 @@ Visual work comes out better designed up front than improvised feature by featur
 Without such tools, write a concrete visual direction in `SPEC.md` (palette, type, density, references) instead of "modern and clean". Whatever is designed later goes in as a change (`loopkit/prompts/CHANGE.md`) before the loop reaches that feature.
 
 ## Final validation
-Validate: `jq empty features.json`, unique ids and every `depends_on` exists; count the features and check that none is too big or has a vague verify. Run `bash init.sh` to check it works. Run `git init` (if needed) and commit "plan".
+Validate: `jq empty features.json`, unique ids and every `depends_on` exists; count the features and check that none is too big or has a vague verify. Run `bash init.sh` to check it works, and a few verifies (`bash -c "<verify>"`): they must fail now and not hang. On its first start the harness runs every pending verify and sends the ones that already pass to the replanner. Run `git init` (if needed) and commit "plan".

@@ -38,7 +38,8 @@ starts the loop itself whenever there is work) and the demo if `demo.env` exists
 and the notifications tell you what is going on. Nobody needs to launch `run.sh` by hand: not you, not Claude.
 
 What to look at now and then: `DECISIONS.md` (what the agents decided on their own), the QA notes in `PROGRESS.md`,
-and blocked features in the roadmap.
+`LEARNINGS.md` (what the workers learned about the codebase: fix anything wrong there, it steers every session), and
+blocked features in the roadmap.
 
 ## 4. Changes mid-build
 
@@ -50,7 +51,9 @@ pause. The loop restarts itself with the new plan; if it had already finished, t
 starts it. Never edit the repo by hand while the loop is working: the
 harness resets the tree after each QA and replan and would wipe your edits.
 
-To change the harness itself (a prompt, `run.sh`): same thing, `touch PAUSE`, wait for `logs/paused`, edit, `rm PAUSE`.
+To change the harness itself (a prompt, `run.sh`, `loopkit.env`): same thing, `touch PAUSE`, wait for `logs/paused`,
+edit (and commit what is tracked), `rm PAUSE`. Changes to the harness made while the loop is running are reverted:
+the harness cannot tell yours from an agent's.
 
 ## 5. The demo
 

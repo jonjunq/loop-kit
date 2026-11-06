@@ -7,7 +7,8 @@
 # Stop and stay stopped: touch STOP (the current iteration ends; STOP stays). Resume: rm STOP.
 # Pause for manual changes without relaunching: touch PAUSE (the current iteration ends, logs/paused appears and it
 # waits); rm PAUSE and the harness restarts itself (re-reading run.sh, prompts and features.json). See prompts/CHANGE.md.
-# Markers for the guard: logs/done (HEAD at the last DONE) and logs/halted (stopped, needs a human).
+# Markers for the guard: logs/done (HEAD at the last DONE), logs/halted (stopped, needs a human) and logs/waiting
+# (waiting out a usage limit until the time inside, then it resumes the interrupted session by itself).
 set -uo pipefail
 
 KIT=$(dirname "$(readlink -f "$0")")   # <project>/loopkit
@@ -38,18 +39,30 @@ USERTEST_ROUNDS="${USERTEST_ROUNDS:-2}"          # user-test rounds when the wor
 USERTEST_MODEL="${USERTEST_MODEL:-$QA_MODEL}"    # model of the testers and the triage
 USERTEST_TIMEOUT="${USERTEST_TIMEOUT:-90m}"      # cap per tester
 BUDGET_USD="${BUDGET_USD:-}"                     # stop when the agents' reported cost reaches this (empty = no cap)
+HANG_SECONDS="${HANG_SECONDS:-$(( $(secs "$VERIFY_TIMEOUT") + 600 ))}"  # kill a session whose transcript stops growing this long (0 = never)
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
+LIMIT_MARGIN="${LIMIT_MARGIN:-120}"              # seconds to wait after the announced reset of a usage limit
+SLEEP="${LOOPKIT_SLEEP:-sleep}"                  # long waits go through this (the tests replace it)
+LEARNINGS_MAX=80                                 # lines of LEARNINGS.md before the worker is asked to condense it
 # ------------------------------------------------------------------------------------------------------
 
 FEAT=features.json
 mkdir -p logs
 exec 9>logs/.lock
 flock -n 9 || { echo "Another run.sh is already running in this folder"; exit 1; }
-rm -f logs/paused logs/halted
+rm -f logs/paused logs/halted logs/waiting
 
 log()      { echo "[$(date '+%F %T')] $*" | tee -a logs/loop.log; }
 commit()   { git add -A >/dev/null 2>&1 && git commit --no-verify -qm "$1" >/dev/null 2>&1; true; }
 progress() { echo "- $(date '+%F %T') [harness] $*" >> PROGRESS.md; }
+# Waits $1 seconds in steps; returns 1 as soon as STOP or PAUSE appears
+nap() {
+  local left=$1
+  while (( left > 0 )); do
+    [[ -f STOP || -f PAUSE ]] && return 1
+    $SLEEP $(( left < 30 ? left : 30 )); left=$(( left - 30 ))
+  done
+}
 # Before every git reset --hard: if the commit did not go in, stop rather than lose work
 clean_or_die() {
   [[ -z "$(git status --porcelain)" ]] && return
@@ -97,44 +110,122 @@ fail_feat() { # $1 = id, $2 = reason
   log "$1 FAIL: $2"
 }
 
-# Starts a clean Claude Code session. Prints: ok | max_turns | timeout | error | transient
-run_once() { # $1 = role, $2 = prompt file, $3 = model, $4 = extra text
-  local out margs=() rc res
-  out="logs/iter-$(printf %05d "$i")-$1.jsonl"
-  [[ -n "$3" ]] && margs=(--model "$3")
-  # shellcheck disable=SC2086  # PERMS holds several words on purpose
-  LOOPKIT_ROLE="$1" timeout -k 60 "$ITER_TIMEOUT" "$CLAUDE_BIN" -p "$(cat "$2")${4:+
-
-$4}" $PERMS --max-turns "$MAX_TURNS" "${margs[@]}" \
-    --output-format stream-json --verbose >>"$out" 2>>"${out%.jsonl}.err"
-  rc=$?
-  (( rc == 124 || rc == 137 )) && { echo timeout; return; }
-  res=$(grep -E '"type" *: *"result"' "$out" | tail -1)
-  [[ -z "$res" ]] && { echo transient; return; }   # no result at all: network, login, limit before starting...
-  case "$(jq -r '.subtype' <<<"$res")" in
-    error_max_turns) echo max_turns ;;
-    success) if [[ "$(jq -r '.is_error' <<<"$res")" != true ]]; then echo ok
-             elif grep -qiE 'limit|rate|overload|429|529|quota|credit|api error|network' <<<"$(jq -r '.result // ""' <<<"$res")"; then echo transient
-             else echo error; fi ;;
-    *) echo error ;;
-  esac
+# ---------- Agent sessions ----------
+# Every session and verify runs with its own LOOPKIT_SESSION token in the environment. Whatever it starts inherits it,
+# even servers that detach into their own process group, so the harness can find and kill all of it afterwards.
+session_pids() { grep -lzxF "LOOPKIT_SESSION=$1" /proc/[0-9]*/environ 2>/dev/null | cut -d/ -f3; }
+kill_session() { # $1 = token. Kills what is left of a session; prints how many processes it found (returns 1 if none)
+  local p; p=$(session_pids "$1"); [[ -n $p ]] || return 1
+  # shellcheck disable=SC2086  # one pid per word
+  kill -TERM $p 2>/dev/null; sleep 2
+  # shellcheck disable=SC2046
+  kill -KILL $(session_pids "$1") 2>/dev/null
+  wc -w <<<"$p"
 }
-# Same as run_once, but on a transient failure (usage limit, network) waits with backoff and retries
+# Kills a session whose transcript has not grown in HANG_SECONDS (a tool that never returns, a server in the foreground)
+watchdog() { # $1 = pid, $2 = token, $3 = flag file to leave, rest = the session's output files
+  local pid=$1 tok=$2 flag=$3 size last="" idle=0 step nap
+  shift 3; step=$(( HANG_SECONDS >= 60 ? 10 : 1 ))
+  trap 'kill "$nap" 2>/dev/null; exit 0' TERM
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep "$step" & nap=$!; wait "$nap"
+    size=$(stat -c %s -- "$@" 2>/dev/null | tr '\n' ' ')
+    if [[ $size == "$last" ]]; then idle=$(( idle + step )); else idle=0; last=$size; fi
+    if (( idle >= HANG_SECONDS )); then : > "$flag"; kill_session "$tok" >/dev/null; exit 0; fi
+  done
+}
+# loopkit.env is git-ignored, so no reset protects it: any agent that changes it gets the copy taken at start back
+restore_env() { # $1 = role
+  if [[ -f logs/.loopkit.env ]]; then cmp -s loopkit.env logs/.loopkit.env && return 0; cp -p logs/.loopkit.env loopkit.env
+  else [[ -e loopkit.env ]] || return 0; rm -f loopkit.env; fi
+  log "$1 touched the harness -> reverted: loopkit.env" >&2
+}
+
+RESUME_PROMPT="The session was interrupted (usage limit or network) and the harness has just resumed it. Carry on with the same task from where you left off; your instructions are earlier in this conversation."
+# Runs one Claude Code session, or resumes session $RESUME_SID. Prints "<status> <reset epoch|-> <session id|-> <worked>"
+# status: ok | max_turns | timeout | hung | limit | transient | error; worked = assistant messages in this run
+run_once() { # $1 = role, $2 = prompt file, $3 = model, $4 = extra text
+  local out err off eoff margs=() rargs=() prompt tok flag pid wd="" rc n info sub iserr text sid worked reset limited
+  out="logs/iter-$(printf %05d "$i")-$1.jsonl"; err="${out%.jsonl}.err"
+  off=$(stat -c %s "$out" 2>/dev/null || echo 0); eoff=$(stat -c %s "$err" 2>/dev/null || echo 0)
+  [[ -n "$3" ]] && margs=(--model "$3")
+  if [[ -n "${RESUME_SID:-}" ]]; then rargs=(--resume "$RESUME_SID"); prompt=$RESUME_PROMPT
+  else prompt="$(cat "$2")${4:+
+
+$4}"; fi
+  tok="lk-$$-$BASHPID-$RANDOM$RANDOM"; flag="logs/.hung-$tok"
+  # shellcheck disable=SC2086  # PERMS holds several words on purpose
+  LOOPKIT_ROLE="$1" LOOPKIT_SESSION="$tok" timeout -k 60 "$ITER_TIMEOUT" "$CLAUDE_BIN" -p "$prompt" "${rargs[@]}" \
+    $PERMS --max-turns "$MAX_TURNS" "${margs[@]}" --output-format stream-json --verbose >>"$out" 2>>"$err" 9>&- &
+  pid=$!
+  (( HANG_SECONDS > 0 )) && { watchdog "$pid" "$tok" "$flag" "$out" "$err" & wd=$!; }
+  wait "$pid"; rc=$?
+  [[ -n $wd ]] && { kill "$wd" 2>/dev/null; wait "$wd" 2>/dev/null; }
+  n=$(kill_session "$tok") && log "$1: killed $n processes the session left running" >&2
+  restore_env "$1"
+  # Only this run's part of the transcript (a retry appends to the same file)
+  info=$(tail -c +$((off + 1)) "$out" | jq -Rrs '[split("\n")[] | fromjson? | objects] as $m
+    | ($m | map(select(.type == "result")) | last) as $r
+    | [$m[] | select(.type == "rate_limit_event" and .rate_limit_info.status == "rejected") | .rate_limit_info.resetsAt]
+      + [$m[] | select(.type == "assistant" and .api_error == "usage_limit_reached") | .api_error_params.rate_limit_info.resetsAt // 0]
+      | . as $lim
+    | [ $r.subtype // "-", ($r.is_error // false | tostring),
+        ([($r.result // empty | tostring), (($r.errors // [])[] | tostring)] | join(" ") | gsub("\\s+"; " ") | .[0:600] | if . == "" then "-" else . end),
+        ([$m[] | .session_id // empty] | first // "-"),
+        ([$m[] | select(.type == "assistant" and .error == null and .api_error == null)] | length | tostring),
+        ($lim | map(select(. != null and . > 0)) | last // "-" | tostring),
+        ($lim | length > 0 | tostring) ] | @tsv' 2>/dev/null)
+  IFS=$'\t' read -r sub iserr text sid worked reset limited <<<"$info"
+  : "${sub:=-}" "${sid:=-}" "${worked:=0}" "${reset:=-}" "${limited:=false}"
+  if [[ -f $flag ]]; then rm -f "$flag"; echo "hung - $sid $worked"; return; fi
+  (( rc == 124 || rc == 137 )) && { echo "timeout - $sid $worked"; return; }
+  [[ $sub == error_max_turns ]] && { echo "max_turns - $sid $worked"; return; }
+  [[ $sub == success && $iserr != true ]] && { echo "ok - $sid $worked"; return; }
+  # It did not finish well: a usage limit (the structured event first, the wording as a fallback), or something else
+  text="$text $(tail -c +$((eoff + 1)) "$err" | tail -c 1000 | tr '\n' ' ')"
+  [[ $reset == - ]] && reset=$(reset_epoch "$text") && : "${reset:=-}"
+  if [[ $limited == true ]] || grep -qiE 'usage limit|hit your limit|limit reached|limit will reset|resets [0-9a-z]' <<<"$text"; then
+    echo "limit $reset $sid $worked"
+  elif [[ $sub == - ]] || grep -qiE 'limit|rate|overload|429|529|quota|credit|api error|network' <<<"$text"; then
+    echo "transient - $sid $worked"   # no result at all (network, login, limit before starting...) or a passing error
+  else
+    echo "error - $sid $worked"
+  fi
+}
+# Same as run_once, but waits out usage limits (until the announced reset when there is one, with backoff otherwise)
+# and transient failures, then resumes the interrupted session if it had started working (a new one if that fails).
+# Prints run_once's status, or "stopped" when STOP or PAUSE appeared while waiting.
 run_agent() {
-  local st backoff=60
+  local st reset sid worked resume="" backoff=60 now until
   while :; do
-    st=$(run_once "$@")
-    [[ "$st" != transient ]] && { echo "$st"; return; }
-    [[ -f STOP ]] && { echo error; return; }
-    log "$1: transient failure (usage limit / network). Waiting ${backoff}s" >&2
-    (( backoff == 3600 )) && notify "Loop waiting: usage limit or network down"
-    sleep "$backoff"; backoff=$(( backoff*2 > 3600 ? 3600 : backoff*2 ))
+    read -r st reset sid worked <<<"$(RESUME_SID=$resume run_once "$@")"
+    if [[ -n $resume && $st != limit && ( $sid == - || ( $st == error && $worked == 0 ) ) ]]; then
+      log "$1: could not resume session $resume -> new session" >&2; resume=""; continue
+    fi
+    [[ $st == limit || $st == transient ]] || { echo "$st"; return; }
+    [[ -f STOP ]] && { echo stopped; return; }
+    [[ $sid != - ]] && (( worked > 0 )) && resume=$sid   # it had started: pick it up where it stopped
+    now=$(date +%s)
+    if [[ $st == limit && $reset =~ ^[0-9]+$ ]] && (( reset > now && reset < now + 8 * 86400 )); then
+      until=$(( reset + LIMIT_MARGIN ))
+      log "$1: usage limit. Waiting until $(date -d "@$until" '+%F %H:%M') ($(( until - now ))s)${resume:+, then resuming session $resume}" >&2
+      [[ "$(cat logs/waiting 2>/dev/null)" == "$until" ]] || notify "Loop waiting for the usage limit: it resumes by itself at $(date -d "@$until" '+%H:%M')"
+      echo "$until" > logs/waiting   # the usage guard leaves the loop alone while it waits
+      nap $(( until - now )) || { rm -f logs/waiting; echo stopped; return; }
+      rm -f logs/waiting; backoff=60
+    else
+      log "$1: transient failure (usage limit / network). Waiting ${backoff}s${resume:+, then resuming session $resume}" >&2
+      (( backoff == 3600 )) && notify "Loop waiting: usage limit or network down"
+      nap "$backoff" || { echo stopped; return; }
+      backoff=$(( backoff*2 > 3600 ? 3600 : backoff*2 ))
+    fi
   done
 }
 
-run_verify() { # $1 = id. Exit 0 when the verify passes
-  local cmd; cmd=$(field "$1" .verify)
-  timeout -k 30 "$VERIFY_TIMEOUT" bash -c "$cmd" >"logs/verify-$1.log" 2>&1
+run_verify() { # $1 = id. Exit 0 when the verify passes; whatever it leaves running is killed
+  local cmd rc tok="lk-$$-$BASHPID-$RANDOM$RANDOM"; cmd=$(field "$1" .verify)
+  LOOPKIT_SESSION="$tok" timeout -k 30 "$VERIFY_TIMEOUT" bash -c "$cmd" >"logs/verify-$1.log" 2>&1 9>&-
+  rc=$?; kill_session "$tok" >/dev/null; return $rc
 }
 
 # After the replanner or the triage: keep only features.json and DECISIONS.md, revert the rest and validate the JSON
@@ -189,6 +280,69 @@ regression_sweep() {
     log "Regressions: ${bad[*]}"; progress "Regressions found: ${bad[*]}"; notify "Regressions: ${bad[*]}"
     commit "harness: regressions ${bad[*]}"
   fi
+}
+
+# ---------- Guards around the worker ----------
+# The worker may not change the harness: what it changed in loopkit/, demo.env or usertest.env goes back as it was.
+# (Your own changes to them go in while the loop is paused: see prompts/CHANGE.md.)
+revert_harness() { # $1 = commit before the worker, $2 = id
+  local f touched
+  touched=$(git diff --name-only --no-renames "$1" HEAD -- loopkit demo.env usertest.env)
+  [[ -n $touched ]] || return 0
+  while IFS= read -r f; do
+    if git cat-file -e "$1:$f" 2>/dev/null; then git checkout -q "$1" -- "$f"; else git rm -qf -- "$f"; fi
+  done <<<"$touched"
+  log "Worker touched the harness -> reverted: $(tr '\n' ' ' <<<"$touched")"
+  commit "harness: $2 worker touched the harness -> reverted"
+}
+
+# Signs in the worker's diff that a check got weaker, for the QA to look at (a sign is not a verdict)
+TEST_FILES='(^|/)(tests?|__tests__|specs?|e2e|cypress)/|[._-](test|spec)s?\.[a-z0-9]+$|(^|/)test_[^/]*\.py$'
+red_flags() { # $1 = commit before the worker, $2 = id
+  local from=$1 f w n tests=() lines verify cfg quotes="\"'"
+  local skip='\.(skip|only)\(|\b(xit|xdescribe|xtest|fit|fdescribe)\(|@(pytest\.mark\.)?(skip|xfail)|\bpytest\.skip\(|\bt\.Skip(Now)?\(|#\[ignore\]|@(Disabled|Ignore)\b|\b(test|it)\.todo\('
+  local assert='\b(expect|assert[A-Za-z_]*)\b|\bt\.(Error|Fatal|Fail)'
+  local cases='^.\s*(it|test|describe)(\.each)?\(|\bdef test_|\bfunc Test|#\[test\]|@Test\b'
+  f=$(git diff --name-only --diff-filter=D "$from" HEAD | grep -E "$TEST_FILES" | head -10 | tr '\n' ' ')
+  [[ -n $f ]] && echo "- test files deleted: $f"
+  mapfile -t tests < <(git diff --name-only "$from" HEAD | grep -E "$TEST_FILES")
+  if (( ${#tests[@]} )); then
+    lines=$(git diff -U0 "$from" HEAD -- "${tests[@]}" | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ')
+    changed() { grep -E "^[$1]" <<<"$lines" | grep -cE "$2"; }   # $1 = + or -, $2 = regex
+    (( $(changed + "$skip") > $(changed - "$skip") )) && echo "- tests disabled: $(changed + "$skip") lines with skip/only/xit/todo added, $(changed - "$skip") removed"
+    (( $(changed - "$assert") > $(changed + "$assert") )) && echo "- fewer assertions in the tests: $(changed - "$assert") lines with asserts removed, $(changed + "$assert") added"
+    (( $(changed - "$cases") > $(changed + "$cases") )) && echo "- fewer test cases: $(changed - "$cases") removed, $(changed + "$cases") added"
+  fi
+  # What the verify runs: files it names that existed before and lost lines, and the test runner's configuration
+  verify=$(field "$2" .verify); f=""
+  for w in $verify; do
+    w=${w//[$quotes]/}
+    [[ $w == */* || $w == *.* ]] && git cat-file -e "$from:$w" 2>/dev/null || continue
+    (( $(git diff --numstat "$from" HEAD -- "$w" | awk '{print $2 + 0}') > 0 )) && f+="$w "
+  done
+  cfg=$(git diff --name-only "$from" HEAD | grep -E '(^|/)((playwright|jest|vitest|cypress|karma)\.config\.[a-z]+|pytest\.ini|tox\.ini|conftest\.py|\.mocharc[^/]*)$' | tr '\n' ' ')
+  git diff -U0 "$from" HEAD -- package.json pyproject.toml | grep -qE '^[-+][^-+].*("(pre|post)?(test|e2e|verify)[^"]*" *:|\[tool\.pytest|testpaths|addopts)' \
+    && cfg+="test scripts in package.json/pyproject.toml "
+  [[ -n $f || -n $cfg ]] && echo "- what the verify runs was changed: ${f}${cfg}(the verify is: $verify)"
+  return 0
+}
+
+# A feature's verify must fail before anyone works on it; if it passes, it checks nothing (or the work is already
+# there) and the replanner decides. Only before the first worker (logs/worked lists the features that had one; the
+# commits tell for older runs), once per verify (logs/precheck/<id> keeps it), and never for regression gates
+# ("Full regression" features), which are meant to pass once their dependencies do.
+precheck_due() { # $1 = id
+  (( $(field "$1" '.attempts//0') == 0 )) || return 1
+  [[ "$(field "$1" '(.description // "") | test("full regression|^\\[regression"; "i")')" == false ]] || return 1
+  [[ "$(cat "logs/precheck/$1" 2>/dev/null)" != "$(field "$1" .verify)" ]] || return 1
+  ! grep -qxF "$1" logs/worked 2>/dev/null || return 1
+  (( $(git log --format=%s | awk -v id="$1" 'index($0, id ":") == 1 || index($0, "harness: " id " worker (") == 1 \
+       || $0 == "harness: " id " PASS" || $0 == "harness: " id " fail" {n++} END {print n+0}') == 0 ))
+}
+already_green() { # $1 = id. Marks a feature whose verify already passes, for the replanner
+  mkdir -p logs/precheck; field "$1" .verify > "logs/precheck/$1"
+  set_feat "$1" '.notes=$n' --arg n "[harness] verify already passes before any work: empty/weak verify or already done (logs/verify-$1.log)"
+  progress "$1: verify already passes before any work"; log "$1: verify already passes before any work"
 }
 
 # ---------- Security review ----------
@@ -363,9 +517,11 @@ jq -e '([.features[].id]) as $ids
 for f in logs/ STOP PAUSE loopkit.env __pycache__/; do grep -qxF "$f" .gitignore 2>/dev/null || echo "$f" >> .gitignore; done
 [[ -d .git ]] || git init -q
 git var GIT_COMMITTER_IDENT >/dev/null 2>&1 || { echo "Set a git identity first: git config --global user.name/user.email"; exit 1; }
+[[ -f LEARNINGS.md ]] || cp "$KIT/templates/LEARNINGS.md" LEARNINGS.md   # durable lessons every worker reads
+if [[ -f loopkit.env ]]; then cp -p loopkit.env logs/.loopkit.env; else rm -f logs/.loopkit.env; fi  # see restore_env
 commit "loop start"
 git rev-parse -q --verify HEAD >/dev/null || { echo "Could not make the first commit"; exit 1; }
-[[ -f init.sh ]] && { timeout 30m bash init.sh >>logs/init.log 2>&1 || log "WARNING: init.sh failed (see logs/init.log)"; }
+[[ -f init.sh ]] && { timeout 30m bash init.sh >>logs/init.log 2>&1 9>&- || log "WARNING: init.sh failed (see logs/init.log)"; }
 
 stall=0; replans=0; since_sweep=0; i=0
 last_pass=$(passing)
@@ -393,6 +549,20 @@ for ((i=i0+1; i<=i0+MAX_ITER; i++)); do
     exit 0
   fi
 
+  # First start of a plan: every pending verify must fail now. The ones that pass go to the replanner together
+  if (( i0 == 0 )) && [[ ! -f logs/.baseline ]]; then
+    : > logs/.baseline; green=()
+    log "Checking that the pending verifies fail before any work"
+    for id in $(jq -r '.features[]|select(.passes!=true and (.blocked//false)!=true)|.id' "$FEAT"); do
+      [[ -f STOP || -f PAUSE ]] && break
+      precheck_due "$id" && run_verify "$id" && { already_green "$id"; green+=("$id"); }
+    done
+    if (( ${#green[@]} )); then
+      notify "Verifies that already pass before any work: ${green[*]}. Sent to the replanner"
+      replan "verify already passes before any work (empty/weak verify or already done): ${green[*]}"; continue
+    fi
+  fi
+
   id=$(next_feature)
   if [[ -z "$id" ]]; then
     replan "$rem features left but none has its dependencies satisfied (blocked or a cycle)"; continue
@@ -404,17 +574,35 @@ for ((i=i0+1; i<=i0+MAX_ITER; i++)); do
     replan "$stall iterations in a row without a new passing feature"; continue
   fi
 
+  # 0) RED FIRST: a verify that passes before the first worker checks nothing (or it is already done)
+  if precheck_due "$id" && run_verify "$id"; then
+    already_green "$id"; commit "harness: $id verify already passes"
+    replan "$id: verify already passes before any work: empty/weak verify or already done"; continue
+  fi
+
   log "Iter $i | $id | left $rem | passing $(passing)"
   cp "$FEAT" logs/.before.json
+  commit "harness: before $id"; wpre=$(git rev-parse HEAD)
+  note=""
+  n=$(wc -l < LEARNINGS.md 2>/dev/null || echo 0)
+  (( n > LEARNINGS_MAX )) && note="
+
+NOTE FROM THE HARNESS: LEARNINGS.md has $n lines, over its cap of $LEARNINGS_MAX. Condense it in this session (merge entries, drop what is obsolete or specific to one feature)."
 
   # 1) WORKER: implements the feature the harness assigns
+  grep -qxF "$id" logs/worked 2>/dev/null || echo "$id" >> logs/worked
   st=$(run_agent worker "$KIT/prompts/WORKER.md" "$MODEL" "ASSIGNED FEATURE:
-$(jq --arg id "$id" '.features[]|select(.id==$id)' "$FEAT")")
+$(jq --arg id "$id" '.features[]|select(.id==$id)' "$FEAT")$note")
   cmp -s "$FEAT" logs/.before.json || log "Worker touched features.json -> reverted"
   cp logs/.before.json "$FEAT"
   commit "harness: $id worker ($st)"
+  revert_harness "$wpre" "$id"
   ok=0
-  if [[ "$st" != ok ]]; then
+  if [[ "$st" == stopped ]]; then
+    log "$id: worker interrupted by STOP/PAUSE while waiting (not counted as an attempt)"; continue
+  elif [[ "$st" == hung ]]; then
+    fail_feat "$id" "hung: no output for ${HANG_SECONDS} s (session killed; logs/iter-$(printf %05d "$i")-worker.jsonl)"
+  elif [[ "$st" != ok ]]; then
     fail_feat "$id" "worker ended with $st (timeout/max-turns = feature too big or stuck)"
   # 2) VERIFY: run by the harness, not by the agent
   elif ! run_verify "$id"; then
@@ -422,8 +610,13 @@ $(jq --arg id "$id" '.features[]|select(.id==$id)' "$FEAT")")
   else
     # 3) QA: a clean session that tries to prove it is not done. Its changes are thrown away
     clean_or_die; pre=$(git rev-parse HEAD); rm -f logs/qa-verdict.txt
+    flags=$(red_flags "$wpre" "$id")
+    [[ -n $flags ]] && log "$id red flags for the QA: $(tr '\n' ' ' <<<"$flags")"
     qst=$(run_agent qa "$KIT/prompts/QA.md" "$QA_MODEL" "FEATURE TO AUDIT:
-$(jq --arg id "$id" '.features[]|select(.id==$id)' "$FEAT")")
+$(jq --arg id "$id" '.features[]|select(.id==$id)' "$FEAT")${flags:+
+
+RED FLAGS THE HARNESS FOUND IN WHAT THE WORKER CHANGED (git diff $wpre HEAD):
+$flags}")
     git reset -q --hard "$pre"; git clean -fdq
     verdict=$(head -1 logs/qa-verdict.txt 2>/dev/null | tr -d '[:space:]')
     reason=$(tail -n +2 logs/qa-verdict.txt 2>/dev/null | head -c 800 | tr '\n' ' ')

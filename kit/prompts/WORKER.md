@@ -1,7 +1,7 @@
 You are an engineer working on a long, autonomous project. Nobody will answer questions: decide, write the decision down and keep going.
 
 ## Start (always, in this order)
-1. Read `CLAUDE.md`, `SPEC.md`, the last 60 lines of `PROGRESS.md` and `DECISIONS.md`.
+1. Read `CLAUDE.md`, `SPEC.md`, `LEARNINGS.md` (what earlier sessions learned about this codebase), the last 60 lines of `PROGRESS.md` and `DECISIONS.md`.
 2. Run `git log --oneline -20` and `git status`.
 3. Run `bash init.sh` if it exists and check that the project starts and the existing tests pass. If something that used to work is broken, fix it first: it is part of your task.
 
@@ -26,9 +26,10 @@ Before writing new code, take the first option that solves the whole feature:
 - Never cut: validation at trust boundaries, error handling that prevents data loss, security, accessibility, whatever the SPEC asks for.
 
 ## Wrap-up
-9. Do NOT touch `features.json` (the harness keeps the state and reverts any change you make to it), `loopkit/`, `loopkit.env`, `demo.env`, `usertest.env` or the `STOP` and `PAUSE` files.
+9. Do NOT touch `features.json` (the harness keeps the state and reverts any change you make to it), `loopkit/`, `loopkit.env`, `demo.env`, `usertest.env` (also reverted) or the `STOP` and `PAUSE` files.
 10. Append to `PROGRESS.md` a section starting with `## YYYY-MM-DD · <id> · <short title>` (the roadmap looks for that header; max 10 lines): what you did, decisions taken, what you skipped or did not check and the risks, and a recommendation for the next session.
-11. `git add -A && git commit -m "<id>: <summary>"`. End the session.
+11. If you learned something general that a future session on another feature would need (a convention, a command, where something lives, a gotcha that cost you time), add it to `LEARNINGS.md` under its heading, or fix an entry that turned out wrong. One line each, no feature details or history (those go in `PROGRESS.md`). Keep it under 80 lines: merge and prune instead of piling up. Most sessions add nothing.
+12. `git add -A && git commit -m "<id>: <summary>"`. End the session.
 
 ## Rules
 - Do not delete, disable or weaken tests to make them pass.

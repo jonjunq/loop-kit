@@ -3,18 +3,39 @@
 
 The role comes from LOOPKIT_ROLE (set by run.sh). Behaviour per feature is scripted in mock/<role>-<id> files, one
 action per line, consumed in order; with no script the agent "does the work". Every session reports a cost of
-MOCK_COST dollars (default 0.5) so BUDGET_USD can be tested.
+MOCK_COST dollars (default 0.5) so BUDGET_USD can be tested. Sessions get an id and can be resumed (--resume <id>):
+the mock keeps each session's prompt in mock/sessions/ and logs every resume to mock/resumed. The last prompt of each
+role is saved to mock/prompt-<role> for the tests to read.
 """
-import json, os, subprocess, sys
+import json, os, subprocess, sys, time, uuid
 
-prompt = sys.argv[sys.argv.index("-p") + 1]
+args = sys.argv[1:]
+prompt = args[args.index("-p") + 1]
 role = os.environ.get("LOOPKIT_ROLE", "")
 COST = float(os.environ.get("MOCK_COST", "0.5"))
+os.makedirs("mock/sessions", exist_ok=True)
+if "--resume" in args:
+    SID = args[args.index("--resume") + 1]
+    open("mock/resumed", "a").write(SID + "\n")
+    if os.path.exists("mock/resume-fail") or not os.path.exists(f"mock/sessions/{SID}"):  # as Claude Code says it
+        msg = f"No conversation found with session ID: {SID}"
+        print(json.dumps({"type": "result", "subtype": "error_during_execution", "is_error": True, "num_turns": 0,
+                          "session_id": SID, "total_cost_usd": 0, "errors": [msg]}))
+        sys.stderr.write(msg + "\n"); sys.exit(1)
+    prompt = open(f"mock/sessions/{SID}").read()
+else:
+    SID = str(uuid.uuid4())
+    open(f"mock/sessions/{SID}", "w").write(prompt)
+open(f"mock/prompt-{role}", "w").write(prompt)
+
+
+def emit(**m):
+    print(json.dumps(dict(m, session_id=SID)), flush=True)
 
 
 def result(subtype="success", is_error=False, text="done"):
-    print(json.dumps({"type": "system", "subtype": "init"}))
-    print(json.dumps({"type": "result", "subtype": subtype, "is_error": is_error, "result": text, "total_cost_usd": COST}))
+    emit(type="system", subtype="init")
+    emit(type="result", subtype=subtype, is_error=is_error, result=text, total_cost_usd=COST)
 
 
 def pop(name, default):
@@ -36,8 +57,12 @@ def after(marker):
     return prompt.split(marker, 1)[1]
 
 
+def work(fid):
+    sh(f'mkdir -p done && touch done/{fid} && echo "## 2026-01-01 · {fid} · done" >> PROGRESS.md && git add -A && git commit -qm "{fid}"')
+
+
 if role in ("worker", "qa"):
-    fid = json.loads(after("ASSIGNED FEATURE:\n") if role == "worker" else after("FEATURE TO AUDIT:\n"))["id"]
+    fid = json.JSONDecoder().raw_decode(after("ASSIGNED FEATURE:\n" if role == "worker" else "FEATURE TO AUDIT:\n"))[0]["id"]
 
 if role == "worker":
     act = pop(f"worker-{fid}", "ok")
@@ -47,6 +72,31 @@ if role == "worker":
         sys.exit(1)
     if act == "maxturns":
         result("error_max_turns", True, None); sys.exit(1)
+    if act == "limit-at":  # works a bit, then hits the usage limit, which resets in MOCK_RESET_IN seconds
+        emit(type="system", subtype="init")
+        emit(type="assistant", message={"content": [{"type": "text", "text": "starting"}]})
+        info = {"status": "rejected", "resetsAt": int(time.time()) + int(os.environ.get("MOCK_RESET_IN", "7200")), "rateLimitType": "five_hour"}
+        emit(type="rate_limit_event", rate_limit_info=info, uuid=str(uuid.uuid4()))
+        emit(type="assistant", message={"content": [{"type": "text", "text": "You've hit your limit"}]}, error="rate_limit",
+             api_error="usage_limit_reached", api_error_params={"rate_limit_info": info})
+        emit(type="result", subtype="success", is_error=True, result="You've hit your limit · resets 3pm", total_cost_usd=COST)
+        sys.exit(1)
+    if act == "hang":  # starts a detached "server" and then goes silent
+        child = subprocess.Popen(["setsid", "sleep", "300"])
+        open("mock/hang.pid", "w").write(str(child.pid))
+        emit(type="system", subtype="init")
+        time.sleep(300); sys.exit(0)
+    if act == "server":  # leaves a detached "dev server" running and does the work
+        child = subprocess.Popen(["setsid", "sleep", "300"])
+        open("mock/server.pid", "w").write(str(child.pid))
+        work(fid); result(); sys.exit(0)
+    if act == "harness":  # edits the harness and its settings, then does the work
+        sh("echo 'worker was here' >> loopkit/prompts/QA.md && touch loopkit/evil.sh && echo MODEL=haiku >> loopkit.env"
+           " && { ! test -f demo.env || echo 'DEMO_PORT=1' >> demo.env; }")
+        work(fid); result(); sys.exit(0)
+    if act == "weaken":  # deletes an old test and skips a new one, then does the work
+        sh("git rm -q tests/old_test.py && mkdir -p tests && echo \"it.skip('works', () => {})\" > tests/new_test.js")
+        work(fid); result(); sys.exit(0)
     if act == "cheat":  # marks itself as done without building anything
         d = json.load(open("features.json"))
         for f in d["features"]:
@@ -57,7 +107,7 @@ if role == "worker":
         result(); sys.exit(0)
     if act == "noimpl":  # says it is done but builds nothing
         result(); sys.exit(0)
-    sh(f'mkdir -p done && touch done/{fid} && echo "## 2026-01-01 · {fid} · done" >> PROGRESS.md && git add -A && git commit -qm "{fid}"')
+    work(fid)
     result(); sys.exit(0)
 
 if role == "qa":

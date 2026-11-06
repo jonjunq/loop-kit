@@ -5,7 +5,7 @@
 # in each script. loopkit.env is plain shell (KEY=value) and is git-ignored: it may hold tokens.
 LOOPKIT_VARS=(PERMS MODEL QA_MODEL REPLAN_MODEL MAX_ITER ITER_TIMEOUT MAX_TURNS VERIFY_TIMEOUT MAX_ATTEMPTS
   STALL_LIMIT MAX_REPLANS REGRESSION_EVERY SECURITY_ROUNDS SECURITY_MODEL SECURITY_TIMEOUT SECURITY_REVIEWERS
-  USERTEST_ROUNDS USERTEST_MODEL USERTEST_TIMEOUT BUDGET_USD
+  USERTEST_ROUNDS USERTEST_MODEL USERTEST_TIMEOUT BUDGET_USD HANG_SECONDS
   NOTIFY_CMD NTFY_TOPIC NTFY_SERVER CLAUDE_BIN)
 
 load_config() {
@@ -41,4 +41,39 @@ notify() {
     timeout 30 bash -c "$cmd" notify "$msg" >/dev/null 2>&1
   fi
   return 0
+}
+
+# A duration as timeout(1) takes it (90, 90s, 20m, 3h, 1d) in seconds
+secs() {
+  local n=${1%[smhd]}
+  case $1 in *m) echo $((n * 60)) ;; *h) echo $((n * 3600)) ;; *d) echo $((n * 86400)) ;; *) echo "$n" ;; esac
+}
+
+# When a usage limit resets, from the text Claude Code printed: "usage limit reached|<epoch>", "resets 3pm
+# (Europe/Madrid)", "resets Nov 7, 3:30pm", "try again in 2h 30m". Prints the epoch, or nothing if it finds none.
+reset_epoch() { # $1 = text
+  local t=${1,,} now e s=0 rest when tz
+  now=$(date +%s)
+  if [[ $t =~ limit\ reached\|([0-9]{9,11}) ]]; then echo "${BASH_REMATCH[1]}"; return; fi
+  if [[ $t =~ (again|retry|resets)\ in\ ([0-9][0-9a-z\ ]*) ]]; then
+    rest=${BASH_REMATCH[2]}
+    while [[ $rest =~ ^\ *([0-9]+)\ *(days|day|d|hours|hour|hrs|hr|h|minutes|minute|mins|min|m|seconds|second|secs|sec|s)(\ .*)?$ ]]; do
+      case ${BASH_REMATCH[2]} in
+        d*) s=$((s + BASH_REMATCH[1] * 86400)) ;; h*) s=$((s + BASH_REMATCH[1] * 3600)) ;;
+        m*) s=$((s + BASH_REMATCH[1] * 60)) ;; *) s=$((s + BASH_REMATCH[1])) ;;
+      esac
+      rest=${BASH_REMATCH[3]}
+    done
+    (( s > 0 )) && echo $((now + s))
+    return
+  fi
+  if [[ $t =~ resets\ (at\ )?(([a-z]{3,9}\ [0-9]{1,2},?\ (at\ )?)?[0-9]{1,2}(:[0-9]{2})?\ ?(am|pm)?)(\ \(([a-z0-9_/+-]+)\))? ]]; then
+    when=${BASH_REMATCH[2]//,/}; when=${when// at / }
+    tz=${BASH_REMATCH[8]}
+    [[ -n $tz ]] && tz=$(sed -E 's#(^|/|_)([a-z])#\1\u\2#g' <<<"$tz")   # europe/madrid -> Europe/Madrid
+    if [[ -n $tz ]]; then e=$(TZ=$tz date -d "$when" +%s 2>/dev/null) || return 0
+    else e=$(date -d "$when" +%s 2>/dev/null) || return 0; fi
+    [[ -z ${BASH_REMATCH[3]} ]] && (( e <= now )) && e=$((e + 86400))   # a bare hour that has passed: tomorrow
+    echo "$e"
+  fi
 }

@@ -29,22 +29,29 @@ It comes with a live roadmap, a usage guard for subscription plans, an always-up
 
 ## Why another loop
 
-Most "Ralph" loops let the agent decide when a task is done. Agents grading their own homework are optimists, so
-this harness never trusts them with the score:
+Most "Ralph" loops let the agent decide when a task is done. Agents grading their own homework are optimists: in a
+2026 study, a frontier agent judging its own long-running loop claimed an improvement in all 54 cycles while 56 % of
+them had changed nothing or made things worse, and the authors conclude that evaluation outside the agent is a
+structural requirement ([arXiv:2607.25152](https://arxiv.org/abs/2607.25152)). So this harness never trusts them
+with the score:
 
 - **The harness picks the work and keeps the state.** `features.json` is only written by the harness (and, under
-  validation, by the replanner). An agent that marks itself done gets reverted.
+  validation, by the replanner). An agent that marks itself done, or edits the harness, its prompts or its settings,
+  gets reverted.
 - **Done means a command passes.** Each feature carries a shell `verify` (its tests) that the harness runs with no
   agent around, followed by an independent QA session that looks for cheating (empty tests, mocks that dodge the
-  logic, weakened assertions) and is thrown away afterwards.
+  logic, weakened assertions) and is thrown away afterwards. The verify must fail before the work starts (one that
+  already passes checks nothing and goes back to the plan), and the harness points the QA at the red flags in the
+  diff: tests deleted or skipped, fewer assertions, changes to what the verify runs.
 - **It does not spin.** Failed attempts, stalls and dependency deadlocks trigger a replanner that may only touch the
   plan; replans that make no progress block the feature or stop the loop and call you. Every 10 features all
   previous verifies are re-run to catch regressions.
 - **It checks the whole, not just each piece.** When the features run out, read-only security reviewers look at the
   project as attackers would and testers use it like real people; a triage turns what is real into new features.
-- **It is built for days, not minutes**: clean pause/resume for your changes, usage-window guard, budget cap,
-  notifications, a roadmap with an ETA that learns from the project's real pace, and a demo that always shows the
-  latest passing feature.
+- **It is built for days, not minutes**: clean pause/resume for your changes, usage-window guard, a wait until the
+  usage limit resets that then resumes the interrupted session, hung sessions killed early with whatever they left
+  running, durable lessons every worker reads (`LEARNINGS.md`), budget cap, notifications, a roadmap with an ETA
+  that learns from the project's real pace, and a demo that always shows the latest passing feature.
 
 ### In real use
 
@@ -139,7 +146,7 @@ kit/                    what gets installed into <project>/loopkit/
   tmux.sh               creates the tmux session (loop, roadmap, guard, demo); templates/ has a systemd unit for boot
   demo.sh               always-up-to-date demo
   notify.sh lib.sh      settings and notifications
-  templates/            loopkit.env, demo.env, usertest.env, design README, systemd unit
+  templates/            loopkit.env, demo.env, usertest.env, LEARNINGS.md, design README, systemd unit
 examples/               notification scripts and a remote notification watcher
 docker/                 an isolated runner image
 tests/                  end-to-end tests of the harness with a fake Claude
@@ -149,7 +156,11 @@ tests/                  end-to-end tests of the harness with a fake Claude
 
 - The harness design follows Anthropic's
   [harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps)
-  (independent evaluator, generator/evaluator split) and the "Ralph" loop idea.
+  (independent evaluator, generator/evaluator split) and
+  [effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+  (a feature list, one feature per session, a progress file and git as the memory between sessions), and the "Ralph"
+  loop idea.
+- `LEARNINGS.md`: after the "Codebase Patterns" section of [snarktank/ralph](https://github.com/snarktank/ralph) (MIT).
 - "Minimal code" rules in `prompts/WORKER.md`: adapted from [Ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 - Interview with a bet per question, mandatory out-of-scope list, boundaries in the SPEC, tests first: ideas from
   [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT).

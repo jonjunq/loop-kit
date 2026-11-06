@@ -30,13 +30,18 @@ Incluye un roadmap en vivo, un vigilante de uso para planes de suscripción, una
 ## Por qué otro bucle
 
 La mayoría de bucles "Ralph" dejan que el agente decida cuándo ha terminado. Un agente que se corrige a sí mismo es
-optimista, así que este arnés nunca le deja llevar la cuenta:
+optimista: en un estudio de 2026, un agente puntero que juzgaba su propio bucle largo dijo haber mejorado en los 54
+ciclos, cuando el 56 % no había cambiado nada o había empeorado, y los autores concluyen que evaluar fuera del agente
+es un requisito estructural ([arXiv:2607.25152](https://arxiv.org/abs/2607.25152)). Así que este arnés nunca le deja
+llevar la cuenta:
 
 - **El arnés elige el trabajo y guarda el estado.** `features.json` solo lo escribe el arnés (y, con validación, el
-  replanner). Un agente que se marca como hecho se revierte.
+  replanner). Un agente que se marca como hecho, o que toca el arnés, sus prompts o sus ajustes, se revierte.
 - **Hecho significa que pasa un comando.** Cada feature lleva un `verify` de shell (sus tests) que el arnés ejecuta
   sin ningún agente delante, y después una sesión de QA independiente que busca trampas (tests vacíos, mocks que
-  esquivan la lógica, asserts rebajados) y cuyos cambios se descartan.
+  esquivan la lógica, asserts rebajados) y cuyos cambios se descartan. El verify tiene que fallar antes de empezar
+  (uno que ya pasa no comprueba nada y vuelve al plan), y el arnés le señala al QA las señales rojas del diff: tests
+  borrados o saltados, menos asserts, cambios en lo que ejecuta el verify.
 - **No da vueltas en vacío.** Los intentos fallidos, los atascos y las dependencias imposibles activan un replanner
   que solo puede tocar el plan; si los replanes no avanzan, bloquea la feature o para el bucle y te avisa. Cada 10
   features se vuelven a ejecutar todos los verify anteriores para cazar regresiones.
@@ -44,8 +49,10 @@ optimista, así que este arnés nunca le deja llevar la cuenta:
   miran el proyecto como lo haría un atacante y unos probadores lo usan como gente real; un triaje convierte lo que
   es real en features nuevas.
 - **Está hecho para días, no minutos**: pausa y reanudación limpias para tus cambios, vigilante de la ventana de uso,
-  tope de gasto, avisos, un roadmap con hora de fin que aprende del ritmo real del proyecto y una demo que siempre
-  enseña la última feature que pasó.
+  espera hasta que se renueva el límite de uso y retoma la sesión interrumpida, mata pronto las sesiones colgadas con
+  lo que dejaron corriendo, aprendizajes duraderos que lee cada worker (`LEARNINGS.md`), tope de gasto, avisos, un
+  roadmap con hora de fin que aprende del ritmo real del proyecto y una demo que siempre enseña la última feature que
+  pasó.
 
 ### En uso real
 
@@ -137,9 +144,13 @@ roadmap se muestra en castellano si tu navegador lo está (o con `?lang=es`).
 
 ## Créditos
 
-- El diseño del arnés sigue el artículo de Anthropic
+- El diseño del arnés sigue los artículos de Anthropic
   [harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps)
-  (evaluador independiente, separar quien genera de quien evalúa) y la idea del bucle "Ralph".
+  (evaluador independiente, separar quien genera de quien evalúa) y
+  [effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+  (lista de features, una feature por sesión, fichero de progreso y git como memoria entre sesiones), y la idea del
+  bucle "Ralph".
+- `LEARNINGS.md`: a partir de la sección "Codebase Patterns" de [snarktank/ralph](https://github.com/snarktank/ralph) (MIT).
 - Reglas de "código mínimo" de `prompts/WORKER.md`: adaptadas de [Ponytail](https://github.com/DietrichGebert/ponytail) (MIT).
 - Entrevista con apuesta por pregunta, "fuera de alcance" obligatorio, límites en la SPEC y tests primero: ideas de
   [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) (MIT).

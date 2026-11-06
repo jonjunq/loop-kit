@@ -19,7 +19,8 @@ Features get bigger and slower as the project grows (more tests to run). The roa
 ## Subscription (Pro, Max, Team, Enterprise)
 
 - Usage is metered in rolling windows (5 hours and 7 days). When a window is exhausted, sessions fail with a usage
-  limit; the harness treats it as transient and waits (backoff up to 1 h) without counting attempts.
+  limit; the harness reads when it resets, sleeps until then (and tells you when it will resume), then resumes the
+  interrupted session where it stopped. It does not count as an attempt.
 - **The usage guard** (`./loopkit/guard.sh`, in its own tmux window) reads the usage Claude Code reports in each
   session's log, and puts `STOP` when 5-hour usage plus one typical iteration would cross `GUARD_LIMIT` (80 % by
   default), so you keep the rest of the window for your own work, and removes that STOP once the loop has exited.

@@ -21,6 +21,7 @@ the environment, but a fresh shell does not.
 | `BUDGET_USD` | none | Stop before the next iteration once the sessions' reported cost reaches this |
 | `VERIFY_TIMEOUT` | `20m` | Cap per verify command (raise it when e2e suites grow; 45m is common late in a web project) |
 | `ITER_TIMEOUT` | `3h` | Cap per agent session |
+| `HANG_SECONDS` | `VERIFY_TIMEOUT` + 600 | Kill a session whose transcript has not grown in this many seconds and count it as a failed attempt (`hung`), long before `ITER_TIMEOUT`. A session can be silent while one long command runs (its own run of the verify), hence the default; raise it if a single command of yours takes longer. `0` = never |
 | `MAX_TURNS` | `300` | Turns cap per agent session |
 | `MAX_ATTEMPTS` | `3` | Failed attempts before a feature triggers a replan |
 | `STALL_LIMIT` | `6` | Iterations without a new pass before a replan |
@@ -107,10 +108,21 @@ Ids must be unique and start with `F` (the roadmap and the demo look for `Fxxx`)
 decimals and repeats are fine. `verify` is run from the repo root with `bash -c`, must be self-contained, non-interactive,
 deterministic, under `VERIFY_TIMEOUT`, and exit 0 only when the feature works.
 
+## LEARNINGS.md
+
+Durable lessons about the codebase (conventions, commands, where things live, gotchas), at most 80 lines. The
+planner creates it (`loopkit/templates/LEARNINGS.md`; the harness copies the template if it is missing), every
+worker reads it before starting and adds to it only what a later session on another feature would need. When it
+grows past 80 lines, the harness asks the next worker to condense it. `PROGRESS.md` stays the session log; workers
+read only its last 60 lines.
+
 ## Files the harness creates
 
 `logs/loop.log` (timeline), `logs/notify.log` (notifications), `logs/iter-NNNNN-<role>.jsonl|.err` (full transcript of
 each agent session), `logs/verify-<id>.log`, `logs/qa-verdict.txt`, `logs/security-NNNNN/` (reviewers' reports), `logs/usertest-NNNNN/` (copy data, server log,
 reports), `logs/guard.json`, `logs/.lock`, `logs/done` (commit of the last DONE), `logs/halted` (why it stopped
-needing a human; delete it to let the guard start the loop again). Commit messages: `harness: …`, `replan: …`, `security: round …`, `usertest: round …`, plus the
+needing a human; delete it to let the guard start the loop again), `logs/waiting` (while it waits out a usage
+limit: when it resumes), `logs/worked` (features that have had a worker), `logs/precheck/<id>` (a verify that already
+passed before any work), `logs/.baseline` (the first-start check of every verify is done) and `logs/.loopkit.env`
+(the copy of `loopkit.env` that agents' changes are reverted to). Commit messages: `harness: …`, `replan: …`, `security: round …`, `usertest: round …`, plus the
 workers' `Fxxx: …` and your `change: …`.

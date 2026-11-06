@@ -18,9 +18,31 @@ commit or stash what is there, then delete `logs/halted` or run `./loopkit/run.s
 causes: the feature is too big (split it with `CHANGE.md`), the verify is flaky (timing, ports in use, a server left
 running) or depends on something outside the sandbox.
 
+**"verify already passes before any work"**
+The harness ran a feature's verify before its first worker and it passed: either it checks nothing (a filter that
+matches no test, a check that is always true) or an earlier feature already built it. The replanner gets it and
+rewrites the verify or says which feature built it (`DECISIONS.md`); the feature then goes on. A "Full regression"
+gate is exempt. If you meant it, write a verify that fails until the feature exists.
+
+**"hung: no output for N s"**
+A session stopped producing output for `HANG_SECONDS` and was killed (with whatever it had started). Look at the end of
+`logs/iter-NNNNN-worker.jsonl` for the last tool call: usually a command that never returns (a server started in the
+foreground, an interactive prompt, a test waiting for input). If a single command of yours legitimately runs longer
+than that in silence, raise `HANG_SECONDS`.
+
+**"Worker touched the harness -> reverted"**
+The worker changed `loopkit/`, `loopkit.env`, `demo.env` or `usertest.env`; the harness put them back. To change the
+harness yourself: `touch PAUSE`, wait for `logs/paused`, edit and commit, `rm PAUSE` (or `prompts/CHANGE.md`).
+Changes you make to them while the loop is running (not paused) are reverted too.
+
+**It says "Waiting until … for the usage limit"**
+It hit the usage limit and sleeps until the reset Claude Code announced, then resumes the interrupted session. The
+time is in `logs/waiting`. `touch STOP` (or `PAUSE`) ends the wait; it is not counted as an attempt.
+
 **Everything fails at once / sessions end immediately**
 Check `logs/iter-*-worker.err` and the last `result` line of the latest `logs/iter-*-worker.jsonl`. Typical: Claude
-Code logged out, usage limit (the harness waits by itself), no network, or `PERMS` refusing what the worker needs.
+Code logged out, usage limit (the harness waits by itself until the reset), no network, or `PERMS` refusing what the
+worker needs.
 
 **Workers get stuck asking for permission**
 With `--permission-mode auto` nobody approves blocked actions. Either run in a sandbox with

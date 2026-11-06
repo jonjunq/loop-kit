@@ -41,6 +41,10 @@ for i in range(1, n + 1):
     sys.stdout.write(f"from {head}\n\n" if i == 1 else "\n")
 PY
 }
+fakesleep="$TMP/fakesleep"   # LOOPKIT_SLEEP: long waits are logged to $SLEPT instead of slept
+printf '#!/bin/sh\necho "$1" >> "$SLEPT"\n' > "$fakesleep"; chmod +x "$fakesleep"
+slept() { awk '{s += $1} END {print s + 0}' "$1/slept" 2>/dev/null || echo 0; }
+alive() { [[ -f "$1" ]] && kill -0 "$(cat "$1")" 2>/dev/null; }
 passes() { jq -r --arg id "$2" '.features[]|select(.id==$id)|.passes' "$1/features.json"; }
 field() { jq -r --arg id "$2" ".features[]|select(.id==\$id)|$3" "$1/features.json"; }
 
@@ -51,9 +55,24 @@ check "init ignores loopkit.env" grep -qxF loopkit.env "$P/.gitignore"
 check "update refuses nothing when idle" "$REPO/loopkit" update "$P"
 check "update keeps project files" test -f "$P/features.json"
 
+echo "reset time of a usage limit (lib.sh)"
+# shellcheck source=../kit/lib.sh
+source "$REPO/kit/lib.sh"
+near() { local e; e=$(reset_epoch "$1"); [[ -n $e ]] && (( e - $(date +%s) >= $2 - 2 && e - $(date +%s) <= $2 + 2 )); }
+at() { local e; e=$(reset_epoch "$1"); (( e == $2 || e == $2 + 86400 )); }
+check "epoch after 'usage limit reached|'" test "$(reset_epoch 'Claude AI usage limit reached|1793975400')" = 1793975400
+check "'try again in 2h 30m'" near 'Please try again in 2h 30m.' 9000
+check "'resets in 45 minutes'" near 'Limit reached, resets in 45 minutes' 2700
+check "'resets 3pm (Europe/Madrid)' in that time zone" at "You've hit your limit · resets 3pm (Europe/Madrid)" "$(TZ=Europe/Madrid date -d 3pm +%s)"
+check "'resets Nov 7, 3:30pm'" test "$(reset_epoch '5-hour limit reached ∙ resets Nov 7, 3:30pm')" = "$(date -d 'Nov 7 3:30pm' +%s)"
+check "no time in the text, no reset" test -z "$(reset_epoch 'API Error: 529 overloaded')"
+check "durations in seconds" test "$(secs 20m) $(secs 3h) $(secs 90)" = "1200 10800 90"
+
 echo "happy path"
 P=$(project happy "$(feature F001 '[]' 1)" "$(feature F002 '["F001"]' 2)" "$(feature F003 '["F002"]' 3)")
 run "$P"
+check "LEARNINGS.md is created and committed" git -C "$P" cat-file -e HEAD:LEARNINGS.md
+check "no red flags for a clean diff" bash -c "! grep -q 'RED FLAGS' '$P/mock/prompt-qa'"
 check "all features pass" test "$(jq '[.features[]|select(.passes)]|length' "$P/features.json")" = 3
 check "log says DONE" grep -q 'DONE. Passing: 3' "$P/logs/loop.log"
 check "QA changes were discarded" bash -c "! grep -q 'qa was here' '$P/src.txt' && ! test -e '$P/qa-untracked.txt'"
@@ -70,6 +89,78 @@ check "QA FAIL counts as an attempt and is retried" test "$(field "$P" F001 .att
 check "QA reason reaches the notes history" grep -q 'QA: the button does nothing' "$P/PROGRESS.md"
 check "cheat is reverted and fails the verify" grep -q 'Worker touched features.json -> reverted' "$P/logs/loop.log"
 check "both end up passing" test "$(passes "$P" F001)$(passes "$P" F002)" = truetrue
+
+echo "the worker cannot change the harness"
+P=$(project harness "$(feature F001 '[]' 1)")
+echo 'DEMO_PORT=3000' > "$P/demo.env"; echo 'BUDGET_USD=100' > "$P/loopkit.env"
+git -C "$P" add -A && git -C "$P" commit -qm "demo config"
+printf 'harness\n' > "$P/mock/worker-F001"
+run "$P"
+check "logged" grep -q 'Worker touched the harness -> reverted' "$P/logs/loop.log"
+check "prompt edit reverted" cmp -s "$P/loopkit/prompts/QA.md" "$REPO/kit/prompts/QA.md"
+check "new file in loopkit/ removed" test ! -e "$P/loopkit/evil.sh"
+check "demo.env reverted" test "$(cat "$P/demo.env")" = DEMO_PORT=3000
+check "loopkit.env (git-ignored) reverted" test "$(cat "$P/loopkit.env")" = BUDGET_USD=100
+check "the feature still passes" test "$(passes "$P" F001)" = true
+
+echo "red flags for the QA"
+P=$(project redflags "$(feature F001 '[]' 1)")
+mkdir -p "$P/tests"; printf "it('works', () => { expect(1).toBe(1) })\n" > "$P/tests/old_test.py"
+seq 100 > "$P/LEARNINGS.md"
+git -C "$P" add -A && git -C "$P" commit -qm "old test"
+printf 'weaken\n' > "$P/mock/worker-F001"
+run "$P"
+check "deleted test reaches the QA" grep -q 'test files deleted: tests/old_test.py' "$P/mock/prompt-qa"
+check "skipped test reaches the QA" grep -q 'tests disabled: 1 lines with skip' "$P/mock/prompt-qa"
+check "fewer assertions reach the QA" grep -q 'fewer assertions in the tests: 1' "$P/mock/prompt-qa"
+check "...and the log" grep -q 'F001 red flags for the QA' "$P/logs/loop.log"
+check "an oversized LEARNINGS.md gets the worker a note" grep -q 'LEARNINGS.md has 100 lines' "$P/mock/prompt-worker"
+
+echo "red before starting"
+P=$(project green "$(feature F001 '[]' 1)" \
+  '{"id":"F002","priority":2,"depends_on":[],"description":"[Base] weak","steps":[],"verify":"true","passes":false,"attempts":0,"blocked":false,"notes":""}' \
+  '{"id":"F003","priority":3,"depends_on":["F001"],"description":"[Base] Full regression","steps":[],"verify":"test -f done/F001","passes":false,"attempts":0,"blocked":false,"notes":""}' \
+  '{"id":"F004","priority":4,"depends_on":["F001"],"description":"[Base] built by F001","steps":[],"verify":"test -f done/F001","passes":false,"attempts":0,"blocked":false,"notes":""}')
+printf 'none\n' > "$P/mock/qa-F001"
+run "$P"
+check "first start: a verify that already passes goes to the replanner" grep -q 'Replan 1/5: verify already passes before any work (empty/weak verify or already done): F002$' "$P/logs/loop.log"
+check "...noted in PROGRESS.md" grep -q 'F002: verify already passes before any work' "$P/PROGRESS.md"
+check "before its first worker too (dependency already built it)" grep -qE 'Replan [0-9]/5: F004: verify already passes before any work' "$P/logs/loop.log"
+check "regression gates are not prechecked" bash -c "! grep -q 'F003: verify already passes' '$P/logs/loop.log'"
+check "a retry after an inconclusive QA is not prechecked" bash -c "grep -q 'F001: QA inconclusive' '$P/logs/loop.log' && ! grep -q 'F001: verify already passes' '$P/logs/loop.log'"
+check "the same verify is not sent twice: all pass in the end" test "$(jq '[.features[]|select(.passes)]|length' "$P/features.json")" = 4
+
+echo "usage limit with a reset time"
+P=$(project limit "$(feature F001 '[]' 1)")
+printf 'limit-at\n' > "$P/mock/worker-F001"
+run "$P" LOOPKIT_SLEEP="$fakesleep" SLEPT="$P/slept" MOCK_RESET_IN=7200
+wait_s=$(sed -nE 's/.*usage limit. Waiting until .* \(([0-9]+)s\).*/\1/p' "$P/logs/loop.log")
+check "waits until the reset plus the margin, not a blind backoff" test "${wait_s:-0}" -ge 7318 -a "${wait_s:-0}" -le 7322
+check "...and sleeps exactly that" test "$(slept "$P")" = "${wait_s:-x}"
+check "...telling you when it resumes" grep -q 'it resumes by itself at' "$P/logs/notify.log"
+check "resumes the same session" test "$(head -1 "$P/mock/resumed")" = "$(head -1 "$P/logs/iter-00001-worker.jsonl" | jq -r .session_id)"
+check "...and the feature passes without a failed attempt" test "$(passes "$P" F001)$(field "$P" F001 .attempts)" = true0
+check "logs/waiting is gone" test ! -e "$P/logs/waiting"
+P=$(project noresume "$(feature F001 '[]' 1)")
+printf 'limit-at\n' > "$P/mock/worker-F001"; touch "$P/mock/resume-fail"
+run "$P" LOOPKIT_SLEEP="$fakesleep" SLEPT="$P/slept" MOCK_RESET_IN=60
+check "a resume that fails starts a new session" grep -q 'could not resume session' "$P/logs/loop.log"
+check "...which builds the feature" test "$(passes "$P" F001)$(field "$P" F001 .attempts)" = true0
+P=$(project oldlimit "$(feature F001 '[]' 1)")
+printf 'limit\n' > "$P/mock/worker-F001"
+run "$P" LOOPKIT_SLEEP="$fakesleep" SLEPT="$P/slept"
+check "a limit with no usable reset time falls back to the backoff" test "$(slept "$P")" = 60
+check "...and then goes on" test "$(passes "$P" F001)" = true
+
+echo "hung sessions and leftover processes"
+P=$(project hung "$(feature F001 '[]' 1)" "$(feature F002 '[]' 2)")
+printf 'hang\n' > "$P/mock/worker-F001"; printf 'server\n' > "$P/mock/worker-F002"
+start=$(date +%s); run "$P" HANG_SECONDS=2; took=$(( $(date +%s) - start ))
+check "a silent session is killed as a failed attempt" grep -q 'F001 FAILS (attempt 1): hung: no output for 2 s' "$P/PROGRESS.md"
+check "...long before ITER_TIMEOUT" test "$took" -lt 60
+check "...together with what it started, detached or not" bash -c "test -f '$P/mock/hang.pid' && ! kill -0 \$(cat '$P/mock/hang.pid') 2>/dev/null"
+check "...and the retry passes" test "$(passes "$P" F001)" = true
+check "a server left running by a session is killed" bash -c "grep -q 'worker: killed 1 processes' '$P/logs/loop.log' && ! kill -0 \$(cat '$P/mock/server.pid') 2>/dev/null"
 
 echo "stuck feature -> replan split"
 P=$(project stuck "$(feature F001 '[]' 1)" "$(feature F002 '["F001"]' 2)")
@@ -116,8 +207,11 @@ touch "$P/PAUSE"
 (cd "$P" && timeout 120 ./loopkit/run.sh >/dev/null 2>&1) & bg=$!
 for _ in $(seq 50); do [[ -f "$P/logs/paused" ]] && break; sleep 0.2; done
 check "waits with logs/paused" test -f "$P/logs/paused"
+echo '# owner tweak' >> "$P/loopkit/prompts/WORKER.md"; echo 'MAX_TURNS=301' >> "$P/loopkit.env"
+git -C "$P" commit -qam "change: tweak the worker prompt [no usertest]"
 rm "$P/PAUSE"; wait $bg
 check "restarts itself after the pause and finishes" bash -c "grep -q 'Pause over' '$P/logs/loop.log' && test \"\$(grep -c '] Start' '$P/logs/loop.log')\" = 2 && grep -q DONE '$P/logs/loop.log'"
+check "harness changes made during the pause are kept" bash -c "grep -q 'owner tweak' '$P/loopkit/prompts/WORKER.md' && grep -q MAX_TURNS=301 '$P/loopkit.env' && ! grep -q 'touched the harness' '$P/logs/loop.log'"
 
 echo "notifications"
 P=$(project notify "$(feature F001 '[]' 1)")
@@ -263,6 +357,16 @@ check "after a usage stop, the guard removes its STOP" waitfor 20 test ! -e "$P/
 check "...and starts the loop when the window has renewed" waitfor 60 finished F006
 check "...saying so" grep -q 'usage renewed: relaunching' "$P/logs/notify.log"
 kill $gpid; wait $gpid 2>/dev/null
+P=$(project guardwait "$(feature F001 '[]' 1)")
+mkdir -p "$P/logs"
+python3 -c "import json,time; print(json.dumps({'type':'rate_limit_event','rate_limit_info':{'status':'allowed','unifiedWindows':{'five_hour':{'utilization':0.99,'resetsAt':int(time.time())+3600}}}}))" > "$P/logs/iter-00001-worker.jsonl"
+date +%s > "$P/logs/waiting"
+flock "$P/logs/.lock" sleep 30 & lockpid=$!   # a "running" loop
+(cd "$P" && GUARD_INTERVAL=1 exec python3 loopkit/roadmap/guard.py >> "$TMP/guard.out" 2>&1) & gpid=$!
+sleep 4; check "the guard does not stop a loop that is waiting out a limit" test ! -e "$P/STOP"
+rm "$P/logs/waiting"
+check "...but does once it is working again" waitfor 20 test -e "$P/STOP"
+kill $gpid; pkill -P $lockpid; wait $gpid $lockpid 2>/dev/null
 check "tmux.sh creates the session with loop, roadmap and guard windows" bash -c "cd '$P' && TMUX_SOCKET='$TS' TMUX_SESSION=boot ROADMAP_PORT=0 ./loopkit/tmux.sh && test \"\$(tmux -L '$TS' list-windows -t boot -F '#{window_name}' | tr '\n' ' ')\" = 'loop roadmap guard '"
 check "...and does nothing if it already exists" bash -c "cd '$P' && TMUX_SOCKET='$TS' TMUX_SESSION=boot ./loopkit/tmux.sh | grep -q 'already exists'"
 tmux -L "$TS" kill-server 2>/dev/null

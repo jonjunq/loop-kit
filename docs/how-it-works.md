@@ -8,6 +8,7 @@
 | `CLAUDE.md` | Commands and repo rules every agent reads first | The planner |
 | `features.json` | The plan: features with `priority`, `depends_on`, `verify`, `passes`, `attempts`, `blocked`, `notes` | The planner; afterwards **only the harness** (and the replanner/triage, validated) |
 | `PROGRESS.md` | What each session did, skipped and recommends | Workers and the harness |
+| `LEARNINGS.md` | Durable lessons about the codebase (conventions, commands, gotchas), 80 lines at most, read by every worker | The planner, then workers |
 | `DECISIONS.md` | Ambiguities resolved, replans, user-test results, changes | Agents and you |
 | `init.sh` | Idempotent setup (dependencies, browsers…) | The planner |
 | `logs/` | Everything: `loop.log`, `notify.log`, one stream-json transcript per agent session, verify outputs, QA verdicts, user-test reports | The harness |
@@ -16,15 +17,24 @@
 ## One iteration
 
 1. **Pick.** `run.sh` takes the pending, unblocked feature with the lowest `priority` whose dependencies all pass.
-2. **Worker.** A fresh `claude -p` session gets `prompts/WORKER.md` plus that one feature. It reads the docs, runs
-   `init.sh`, writes the tests first, implements, runs the `verify` itself, appends to `PROGRESS.md` and commits.
-   If it touched `features.json`, the harness reverts it.
-3. **Verify.** The harness runs the feature's `verify` with `bash -c` (with `VERIFY_TIMEOUT`). Non-zero exit = failed attempt.
-4. **QA.** Another fresh session gets `prompts/QA.md`: it reads the diff, runs the whole test suite, tries the UI in a
-   browser, checks the new tests would fail without the code, and looks for cheating. It writes `PASS` or `FAIL`
+2. **Red first.** Before the first worker of a feature, the harness runs its `verify`. If it already passes, it
+   checks nothing (or an earlier feature already built it): no worker is started, the feature gets a note and goes
+   to the replanner, which either rewrites the verify so it fails now or leaves it and says which feature built it.
+   Once per verify, never on retries, and not for "Full regression" gates, which are meant to pass. On the very first
+   start of a plan the harness checks every pending verify this way and sends all the green ones in one replan.
+3. **Worker.** A fresh `claude -p` session gets `prompts/WORKER.md` plus that one feature. It reads the docs and
+   `LEARNINGS.md`, runs `init.sh`, writes the tests first, implements, runs the `verify` itself, appends to
+   `PROGRESS.md` (and to `LEARNINGS.md` if it learned something general) and commits. If it touched `features.json`
+   or the harness (`loopkit/`, `loopkit.env`, `demo.env`, `usertest.env`), the harness reverts it and logs
+   "Worker touched the harness -> reverted".
+4. **Verify.** The harness runs the feature's `verify` with `bash -c` (with `VERIFY_TIMEOUT`). Non-zero exit = failed attempt.
+5. **QA.** Another fresh session gets `prompts/QA.md`: it reads the diff, runs the tests that matter, tries the UI in a
+   browser, checks the new tests would fail without the code, and looks for cheating. The harness hands it the red
+   flags it found in the worker's diff (test files deleted, `skip`/`only`/`xit` added, fewer assertions or test
+   cases, changes to the files the verify runs or to the test runner's configuration) and the QA checks each one. It writes `PASS` or `FAIL`
    (with reproduction steps) to `logs/qa-verdict.txt`; every other change it made is thrown away
    (`git reset --hard` + `git clean`).
-5. **Score.** Only PASS from QA sets `passes: true`. A failure increments `attempts` and stores the reason in
+6. **Score.** Only PASS from QA sets `passes: true`. A failure increments `attempts` and stores the reason in
    `notes`, which the next worker reads first. The harness commits `harness: Fxxx PASS|fail`.
 
 ## Safety nets
@@ -36,8 +46,21 @@
   replan is blocked by the harness. `MAX_REPLANS` replans in a row without progress halt the loop and notify you.
 - **Regression sweeps.** Every `REGRESSION_EVERY` new passes, every passing feature's verify runs again; anything
   that broke goes back to pending with a note.
-- **Transient failures** (usage limit, network, overload) are retried with backoff up to one hour, without counting
-  as attempts. Timeouts and max-turns do count (they usually mean the feature is too big).
+- **Usage limits.** When a session hits the usage limit, the harness reads the reset time from Claude Code's
+  `rate_limit_event` (or, failing that, from the message: "resets 3pm", "try again in 2h"), notifies you and sleeps
+  until then plus two minutes, writing the time to `logs/waiting` so the usage guard does not stop it meanwhile.
+  Then it resumes the same session (`claude --resume <session_id>`) if it had started working, or starts a new one
+  if the resume fails. `STOP` or `PAUSE` end the wait at once.
+- **Transient failures** (network, overload, a limit without a usable reset time) are retried with backoff up to
+  one hour, resuming the session the same way. None of this counts as an attempt. Timeouts and max-turns do count
+  (they usually mean the feature is too big).
+- **Hung sessions.** A session whose transcript has not grown in `HANG_SECONDS` (default `VERIFY_TIMEOUT` + 10
+  minutes) is killed and counts as a failed attempt with the note "hung: no output for N s", instead of burning
+  `ITER_TIMEOUT`.
+- **No leftovers.** Every session and every verify carries its own token in the environment, which whatever it starts
+  inherits, so after it ends the harness kills what it left running, dev servers that detached included. Leftover
+  servers are what usually makes the next verify flaky (ports in use) and, holding the loop's lock, would make the
+  guard believe the loop is still running.
 - **Never lose work.** Before every reset the harness checks the tree is committed; if git cannot commit (identity,
   full disk) it stops instead of wiping anything.
 - **Single instance.** `logs/.lock` (flock) prevents two harnesses in one folder.

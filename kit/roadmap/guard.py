@@ -7,7 +7,8 @@ API key that part just idles (use BUDGET_USD in run.sh instead), while auto-star
 the next iteration starts, so it is set when usage + the cost of one iteration reaches the limit: the current feature
 finishes and the loop stays below. Leaving the rest of the window free is the point: you keep some for your own work.
 Once the loop has exited, the guard removes its own STOP. If you remove STOP by hand before that, it does not set it
-again until the next window.
+again until the next window. If the limit is hit anyway, run.sh waits for the reset by itself (logs/waiting) and then
+resumes the interrupted session, so the guard does not stop it meanwhile: a STOP would lose that session.
 
 With AUTO_RESUME=1 it starts run.sh in the tmux pane TMUX_TARGET (if the pane is idle at a shell prompt) when: the loop
 is not running, there is no STOP, PAUSE or logs/halted (stopped because it needs a human), usage leaves room, and there
@@ -32,6 +33,7 @@ STOP = os.path.join(ROOT, "STOP")
 PAUSE = os.path.join(ROOT, "PAUSE")
 DONE = os.path.join(ROOT, "logs", "done")
 HALTED = os.path.join(ROOT, "logs", "halted")
+WAITING = os.path.join(ROOT, "logs", "waiting")  # run.sh is waiting out a usage limit: leave it alone
 FEAT = os.path.join(ROOT, "features.json")
 STATE = os.path.join(ROOT, "logs", "guard.json")
 
@@ -146,7 +148,8 @@ def main():
                     st.update(last_launch=now, warned=False)
                     time.sleep(min(30, 3 * INTERVAL))  # let it take the lock before looking again
                     continue
-        if st["state"] == "watching" and running and fresh and u5 + cost >= LIMIT and not os.path.exists(STOP):
+        if (st["state"] == "watching" and running and fresh and u5 + cost >= LIMIT and not os.path.exists(STOP)
+                and not os.path.exists(WAITING)):
             open(STOP, "w").close()
             st.update(state="stopping", reset_at=last["r5"], at=now, util=u5, warned=False)
             notify(f"5-hour usage at {u5:.0f} %: stopping the loop after the current feature. It renews at {hm(last['r5'])}"

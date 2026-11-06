@@ -5,7 +5,7 @@ You are the project's tech lead. The product owner wants to bring in a change in
 2. `git status` must be clean; if not, commit whatever is there with the message "wip before change".
 
 ## 1. Understand
-3. Read `SPEC.md`, `DECISIONS.md`, the last 80 lines of `PROGRESS.md` and `features.json` (what passes, what is left and what is blocked).
+3. Read `SPEC.md`, `DECISIONS.md`, `LEARNINGS.md`, the last 80 lines of `PROGRESS.md` and `features.json` (what passes, what is left and what is blocked).
 4. If the change is ambiguous or contradicts something already decided, ask the owner before touching anything (they are here in this session), with your bet for the answer. Push back if the change breaks privacy or security.
 
 ## 2. Apply
@@ -17,7 +17,8 @@ You are the project's tech lead. The product owner wants to bring in a change in
    - Adjust `priority` and `depends_on` so the urgent things come first (priorities may be decimals or repeat; lower = sooner). No cycles.
    - If the change breaks the `verify` of pending features, rewrite them without lowering what the SPEC demands.
    - If the change is visual and you can design visually (e.g. Claude Design via the Artifact tool), design it first, copy the result to `docs/design/` (update its README) and make the feature cite it.
-7. Record in `DECISIONS.md` the date, the requested change, its impact and which features you created or modified.
+   - The `verify` of a new feature must fail now: before the first worker the harness runs it, and one that already passes goes to the replanner.
+7. Record in `DECISIONS.md` the date, the requested change, its impact and which features you created or modified. If the change makes an entry in `LEARNINGS.md` wrong (a convention or a command that changes), fix it.
 
 ## 3. Validate and resume
 8. Validate:
