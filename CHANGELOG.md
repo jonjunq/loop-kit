@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Cleaner remote notifications.** `examples/remote-watch/loopkit-watch` no longer forwards the `[YYYY-MM-DD HH:MM:SS]`
+  stamp that `logs/notify.log` keeps for each line (chat apps already show the time), and leaves out the progress line
+  for a folder without `features.json` instead of sending an empty `()`. Tests with a fake `ssh`.
+
 ## 1.2.0 — 2026-11-06
 
 - **The harness protects itself.** Whatever the worker changes in `loopkit/` (prompts, scripts), `demo.env` or

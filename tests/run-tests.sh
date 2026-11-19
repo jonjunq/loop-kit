@@ -220,6 +220,16 @@ run "$P"
 check "NOTIFY_CMD from loopkit.env gets the message once" test "$(grep -c 'Project done' "$P/sent.txt")" = 1
 check "a script path as NOTIFY_CMD gets the message as its argument" bash -c "cd '$P' && printf '#!/bin/sh\necho \"\$1\" > got.txt\n' > n.sh && chmod +x n.sh && NOTIFY_CMD='$P/n.sh' ./loopkit/notify.sh 'hi there' && test \"\$(cat got.txt)\" = 'hi there'"
 check "notify.sh helper works" bash -c "cd '$P' && ./loopkit/notify.sh hello && grep -q hello sent.txt"
+# examples/remote-watch/loopkit-watch, with a fake ssh that runs the remote command here
+mkdir -p "$TMP/fakebin" "$TMP/watch"
+printf '#!/usr/bin/env bash\nexec bash -c "${@: -1}"\n' > "$TMP/fakebin/ssh"; chmod +x "$TMP/fakebin/ssh"
+mkdir -p "$TMP/plain/logs"; echo '[2026-01-02 03:04:05] no plan here' > "$TMP/plain/logs/notify.log"
+printf 'demo x@y %s\nplain x@y %s\n' "$P" "$TMP/plain" > "$TMP/watch/projects"
+watch() { PATH="$TMP/fakebin:$PATH" HOME="$TMP/watch" SUMMARY_HOUR=99 LOOPKIT_WATCH_CONF="$TMP/watch/projects" LOOPKIT_WATCH_STATE="$TMP/watch/state" "$REPO/examples/remote-watch/loopkit-watch"; }
+watch > "$TMP/watch/out1"; watch > "$TMP/watch/out2"
+check "remote watch forwards notify.log without the timestamp" bash -c "grep -q '^demo: ' '$TMP/watch/out1' && grep -q 'Project done' '$TMP/watch/out1' && ! grep -q '\[20[0-9][0-9]-' '$TMP/watch/out1'"
+check "remote watch adds the progress line only when there is a plan" bash -c "grep -q '^(1/1 done, 0 blocked)' '$TMP/watch/out1' && grep -qx 'plain: no plan here' '$TMP/watch/out1' && ! grep -qx '()' '$TMP/watch/out1'"
+check "remote watch sends each line only once" test ! -s "$TMP/watch/out2"
 
 echo "automatic user test"
 P=$(project usertest "$(feature F001 '[]' 1)")
